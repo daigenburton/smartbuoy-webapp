@@ -1,9 +1,14 @@
-version: '3'
+version: '3.8'
 
 services:
   app:
-    container_name: smartbuoy
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.dev    
     ports:
-      - 3000:3000
-
+      - "3000:3000"
+    volumes:
+      - ./src:/app/src              # Only mount src directory
+    environment:
+      - NODE_ENV=development
+    command: npm run dev          # Use dev mode for hot reload
