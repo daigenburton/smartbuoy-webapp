@@ -4,11 +4,11 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile.dev    
+      dockerfile: Dockerfile    
     ports:
       - "3000:3000"
     volumes:
       - ./src:/app/src             
     environment:
-      - NODE_ENV=development
-    command: npm run dev          # Use dev mode for hot reload
+      - NODE_ENV=production
+    command: npm start         
