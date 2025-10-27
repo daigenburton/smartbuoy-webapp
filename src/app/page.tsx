@@ -1,9 +1,9 @@
-import { redirect } from 'next/navigation';
+import { redirect } from "next/navigation"
 
 export const metadata = {
-  title: 'SmartBuoy'
+  title: "SmartBuoy",
 }
 
 export default function Page() {
-  redirect('/home');
+  redirect("/home")
 }

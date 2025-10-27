@@ -1,7 +1,7 @@
-import Link from 'next/link';
+import Link from "next/link"
 
 export const metadata = {
-  title: 'SmartBuoy - Contact'
+  title: "SmartBuoy - Contact",
 }
 
 export default function Contact() {
@@ -25,5 +25,5 @@ export default function Contact() {
         </button>
       </Link>
     </div>
-  );
+  )
 }
