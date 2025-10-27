@@ -40,8 +40,10 @@ export default function HomePage() {
       </div>
 
       <footer className="mt-16 text-sm text-gray-500">
-        © {new Date().getFullYear()} SmartBuoy Team: Empowering Smarter Oceans
+        SmartBuoy Team: Empowering Smarter Oceans
       </footer>
     </main>
   );
+        // copyright footer if we get copyrights
+        // © {new Date().getFullYear()} SmartBuoy Team: Empowering Smarter Oceans
 }
