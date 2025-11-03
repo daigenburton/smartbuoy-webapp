@@ -1,0 +1,60 @@
+plugins {
+    id 'java'
+    id 'org.jetbrains.kotlin.jvm' version '2.2.0'
+    id 'com.adarshr.test-logger' version '4.0.0'
+    id 'pmd'
+    id "com.diffplug.spotless" version "7.0.0.BETA1"
+}
+
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'pmd'
+    apply plugin: 'com.diffplug.spotless'
+
+    dependencies {
+        testImplementation platform('org.junit:junit-bom:5.11.3')
+        testImplementation 'org.junit.jupiter:junit-jupiter'
+        testImplementation 'org.mockito:mockito-core:5.12.0'
+        testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+        implementation 'com.google.guava:guava:33.2.1-jre'
+        implementation 'org.tinylog:tinylog-api:2.6.2'
+        implementation 'org.tinylog:tinylog-impl:2.6.2'
+        implementation 'org.java-websocket:Java-WebSocket:1.5.6'
+        implementation 'com.googlecode.json-simple:json-simple:1.1.1'
+    }
+
+    pmd {
+        consoleOutput = true
+        toolVersion = "7.0.0"
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+
+    spotless {
+        ratchetFrom 'origin/main'
+        format 'misc', {
+            target '*.gradle', '.gitattributes', '.gitignore'
+            trimTrailingWhitespace()
+            indentWithTabs()
+            endWithNewline()
+        }
+        java {
+            googleJavaFormat()
+        }
+    }
+}
+
+group = 'edu.bu'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+kotlin {
+    jvmToolchain(11)
+}
