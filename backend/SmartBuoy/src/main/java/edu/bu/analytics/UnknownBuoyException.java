@@ -1,7 +1,7 @@
 package edu.bu.analytics;
 
 /**
- * Thrown when StockApp is asked a question about a Stock symbol that it has not been registered to
+ * Thrown when SmartBuoy is asked a question about a buoyId that it has not been registered to
  * follow.
  */
 public class UnknownBuoyException extends Exception {

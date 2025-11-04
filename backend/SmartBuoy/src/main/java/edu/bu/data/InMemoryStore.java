@@ -1,14 +1,41 @@
 package edu.bu.data;
 
+import edu.bu.analytics.UnknownBuoyException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class InMemoryStore implements DataStore {
 
-  @Override
-  public void update(List<BuoyResponse> responses) {}
+  /* Maps buoyId to a list of that buoy's data */
+  private final Map<Integer, List<BuoyResponse>> storedData = new ConcurrentHashMap<>();
 
+  /* Update data stored in memory for buoy */
   @Override
-  public List<BuoyResponse> getHistory(int buoy) {
-    return List.of();
+  public void update(List<BuoyResponse> responses) {
+
+    // loop through all new sensor readings, get buoyId, add new readings to buoy's list
+    for (BuoyResponse response : responses) {
+      if (response == null) continue;
+      int buoyId = response.buoyId;
+      // storedData.computeIfAbsent(buoyId, k -> new ArrayList<>()).add(response);
+      storedData
+          .computeIfAbsent(buoyId, k -> Collections.synchronizedList(new ArrayList<>()))
+          .add(response);
+    }
+  }
+
+  /* If the buoy exists, retrieve all of its the stored data */
+  @Override
+  public List<BuoyResponse> getHistory(int buoyId) throws UnknownBuoyException {
+
+    if (!storedData.containsKey(buoyId)) {
+      throw new UnknownBuoyException(buoyId);
+    }
+
+    List<BuoyResponse> history = storedData.get(buoyId);
+    return new ArrayList<>(history);
   }
 }

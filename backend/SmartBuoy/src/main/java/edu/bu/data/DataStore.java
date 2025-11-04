@@ -1,5 +1,6 @@
 package edu.bu.data;
 
+import edu.bu.analytics.UnknownBuoyException;
 import java.util.*;
 
 /**
@@ -11,5 +12,5 @@ public interface DataStore {
   void update(List<BuoyResponse> responses);
 
   /** Get the entire history of updates that we have seen for buoy. */
-  List<BuoyResponse> getHistory(int buoy);
+  List<BuoyResponse> getHistory(int buoy) throws UnknownBuoyException;
 }

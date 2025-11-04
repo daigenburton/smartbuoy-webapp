@@ -3,30 +3,32 @@ package edu.bu.data;
 import java.time.Instant;
 
 public class BuoyResponse {
-  public final String symbol;
-  public final double price;
-  public final long msSinceEpoch;
-  public final long volume;
 
-  public BuoyResponse(String symbol, double price, long msSinceEpoch, long volume) {
-    this.symbol = symbol;
-    this.price = price;
+  public final int buoyId;
+  public final double measurementVal;
+  public final String measurementType; // temp, tide level, salinity, location
+  public final long msSinceEpoch; // timestamp
+
+  public BuoyResponse(
+      String measurementType, double measurementVal, int buoyId, long msSinceEpoch) {
+    this.buoyId = buoyId;
+    this.measurementVal = measurementVal;
+    this.measurementType = measurementType;
     this.msSinceEpoch = msSinceEpoch;
-    this.volume = volume;
   }
 
   @Override
   public String toString() {
-    return "FinhubResponse{"
-        + "symbol='"
-        + symbol
+    return "BuoyResponse{"
+        + "buoyId='"
+        + buoyId
         + '\''
-        + ", price="
-        + price
-        + ", msSinceEpoch="
+        + ", measurementType="
+        + measurementType
+        + ", time="
         + Instant.ofEpochMilli(msSinceEpoch)
-        + ", volume="
-        + volume
+        + ", measurementVal="
+        + measurementVal
         + '}';
   }
 }
