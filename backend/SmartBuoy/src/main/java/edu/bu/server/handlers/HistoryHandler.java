@@ -14,6 +14,7 @@ import org.tinylog.Logger;
 
 public class HistoryHandler implements HttpHandler {
 
+
   final DataStore dataStore;
 
   public HistoryHandler(DataStore dataStore) {

@@ -1,5 +1,8 @@
 package edu.bu;
 
+import edu.bu.data.DataStore;
+import edu.bu.data.InMemoryStore;
+import edu.bu.server.BasicWebServer;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.List;
@@ -15,5 +18,12 @@ public class SmartBuoyServer {
   // StockAppServer
   public static void main(String[] args) throws IOException, URISyntaxException {
     Logger.info("Starting SmartBuoyServer with arguments: {}", List.of(args));
+
+    // set up store
+    DataStore store = new InMemoryStore();
+
+    // start web server
+    BasicWebServer webServer = new BasicWebServer(store);
+    webServer.start();
   }
 }
