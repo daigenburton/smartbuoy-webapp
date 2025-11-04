@@ -93,6 +93,6 @@ test {
 }
 
 tasks.register('runServer', JavaExec) {
-    mainClass = 'edu.bu.SmartBuoyServer'
-    classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'edu.bu.SmartBuoyServer'
+	classpath = sourceSets.main.runtimeClasspath
 }

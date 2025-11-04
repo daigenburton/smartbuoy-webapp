@@ -2,12 +2,19 @@ package edu.bu.server.handlers;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
+import edu.bu.data.DataStore;
 import java.io.IOException;
 import java.io.OutputStream;
 import org.json.simple.JSONObject;
 import org.tinylog.Logger;
 
 public class HistoryHandler implements HttpHandler {
+
+  final DataStore store;
+
+  public HistoryHandler(DataStore store) {
+    this.store = store;
+  }
 
   @Override
   public void handle(HttpExchange exchange) throws IOException {

@@ -25,7 +25,6 @@ public class BasicWebServer {
     // Create handler for price requests for individual symbols
     server.createContext("/history", new HistoryHandler(store));
 
-
     // Start the server
     server.setExecutor(null); // Use the default executor
     server.start();
