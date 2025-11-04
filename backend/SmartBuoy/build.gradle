@@ -91,3 +91,8 @@ test {
 		events "passed", "skipped", "failed"
 	}
 }
+
+tasks.register('runServer', JavaExec) {
+    mainClass = 'edu.bu.SmartBuoyServer'
+    classpath = sourceSets.main.runtimeClasspath
+}
