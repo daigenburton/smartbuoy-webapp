@@ -22,7 +22,7 @@ public class BasicWebServer {
     // Create an HttpServer instance
     HttpServer server = HttpServer.create(new InetSocketAddress(8000), 0);
 
-    // Create handler for price requests for individual symbols
+    // Create handler for history requests for individual buoyIds
     server.createContext("/history", new HistoryHandler(store));
 
     // Start the server
