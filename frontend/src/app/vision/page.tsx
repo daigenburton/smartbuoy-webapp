@@ -6,12 +6,10 @@ export const metadata = {
 
 export default function Vision() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-blue-50 via-white to-blue-100 text-center px-8 py-16">
-      <h1 className="italic text-5xl font-semibold text-blue-700 mb-10 drop-shadow-sm">
-        Smarter Fishing, Safer Oceans
-      </h1>
+    <div className="page">
+      <h1 className="h1 mb-10">Smarter Fishing, Safer Oceans</h1>
 
-      <div className="max-w-4xl text-lg text-gray-700 leading-relaxed text-left bg-white shadow-md rounded-2xl p-10 border border-blue-100">
+      <div className="card container-wide text-lg leading-relaxed text-gray-700">
         <p className="mb-5">
           At SmartBuoy, we’re redefining the future of lobster fishing—making it smarter, safer, and
           more sustainable. For decades, fishermen have faced two major challenges: the risk of
@@ -39,10 +37,8 @@ export default function Vision() {
         </p>
       </div>
 
-      <Link href="/home">
-        <button className="mt-10 px-6 py-3 bg-blue-600 text-white rounded-full font-medium shadow hover:bg-blue-700 transition-all duration-300">
-          Back to Home
-        </button>
+      <Link href="/home" className="btn btn-primary mt-10">
+        Back to Home
       </Link>
     </div>
   )
