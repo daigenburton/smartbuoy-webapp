@@ -9,9 +9,13 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 
+@Tag("IntegrationTest")
 public class ServerIntegrationTest {
 
   private InMemoryStore store;
@@ -39,12 +43,13 @@ public class ServerIntegrationTest {
 
   /* Verify endpoint retuns a 200 OK response with expected buoy data */
   @Test
+  @Timeout(value = 10, unit = TimeUnit.MILLISECONDS)
   public void testHistoryEndpointReturnsData() throws Exception {
     URL url = new URL("http://localhost:8000/history/1");
     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
     connection.setRequestMethod("GET");
 
-    assertEquals(200, connection.getResponseCode());
+    assertEquals(10, connection.getResponseCode());
 
     BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
     StringBuilder response = new StringBuilder();
@@ -61,6 +66,7 @@ public class ServerIntegrationTest {
 
   /* Verify API handles requests for a nonexistent buoy*/
   @Test
+  @Timeout(value = 10, unit = TimeUnit.MILLISECONDS)
   public void testUnknownBuoyReturns404() throws Exception {
     URL url = new URL("http://localhost:8000/history/999");
     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -71,6 +77,7 @@ public class ServerIntegrationTest {
 
   /* Verify valid JSON is returned*/
   @Test
+  @Timeout(value = 10, unit = TimeUnit.MILLISECONDS)
   public void testContentTypeIsJson() throws Exception {
     URL url = new URL("http://localhost:8000/history/1");
     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -81,6 +88,7 @@ public class ServerIntegrationTest {
 
   /* Verify server returns entire history of a buoy */
   @Test
+  @Timeout(value = 10, unit = TimeUnit.MILLISECONDS)
   public void testHistoryEndpointMultipleReadings() throws Exception {
     store.update(
         Arrays.asList(

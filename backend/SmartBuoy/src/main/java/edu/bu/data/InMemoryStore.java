@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/** In-memory data store used to hold buoy readings */
 public class InMemoryStore implements DataStore {
 
   /* Maps buoyId to a list of that buoy's data */

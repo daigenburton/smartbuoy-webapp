@@ -2,6 +2,7 @@ package edu.bu.data;
 
 import java.time.Instant;
 
+/** Represents a buoy response containing sensor measurements and metadata */
 public class BuoyResponse {
 
   public final int buoyId;

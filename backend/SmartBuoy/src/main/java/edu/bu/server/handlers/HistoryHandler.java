@@ -7,13 +7,12 @@ import edu.bu.data.BuoyResponse;
 import edu.bu.data.DataStore;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.List;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.tinylog.Logger;
 
+/** Handles HTTP requests to the /history endpoint and returns buoy data */
 public class HistoryHandler implements HttpHandler {
-
 
   final DataStore dataStore;
 
@@ -21,22 +20,19 @@ public class HistoryHandler implements HttpHandler {
     this.dataStore = dataStore;
   }
 
+  int statusCode;
+
   @Override
   public void handle(HttpExchange exchange) throws IOException {
-    // parse out symbol of interest from URL
-    String[] requestURLParts = exchange.getRequestURI().getRawPath().split("/");
-    String strID =
-        requestURLParts[requestURLParts.length - 1]; // api endpoint has to be /history/{buoyId}
 
+    String strID = getBuoyIdFromPath(exchange);
     JSONObject json = new JSONObject();
-    int statusCode;
 
     try {
       int buoyId = Integer.parseInt(strID);
-      List<BuoyResponse> history = dataStore.getHistory(buoyId);
-
       JSONArray array = new JSONArray();
-      for (BuoyResponse r : history) {
+
+      for (BuoyResponse r : dataStore.getHistory(buoyId)) {
         JSONObject obj = new JSONObject();
         obj.put("buoyId", r.buoyId);
         obj.put("measurementType", r.measurementType);
@@ -53,13 +49,20 @@ public class HistoryHandler implements HttpHandler {
       statusCode = 404;
     }
 
+    sendJsonResponse(exchange, json, statusCode);
+    Logger.info("Handled history request for {}, responding with {}.", strID, json.toString());
+  }
+
+  private String getBuoyIdFromPath(HttpExchange exchange) {
+    String[] parts = exchange.getRequestURI().getRawPath().split("/");
+    return parts[parts.length - 1];
+  }
+
+  private void sendJsonResponse(HttpExchange exchange, JSONObject json, int statusCode)
+      throws IOException {
     String response = json.toString();
-
-    Logger.info("Handled history request for {}, responding with {}.", strID, response);
-
     exchange.getResponseHeaders().set("Content-Type", "application/json");
     exchange.sendResponseHeaders(statusCode, response.length());
-
     try (OutputStream outputStream = exchange.getResponseBody()) {
       outputStream.write(response.getBytes());
     }
