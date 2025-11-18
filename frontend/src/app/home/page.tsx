@@ -31,6 +31,10 @@ export default function HomePage() {
         <Link href="/contact" className="btn btn-primary">
           Contact Us
         </Link>
+
+        <Link href="/dashboard" className="btn btn-primary">
+          Dashboard
+        </Link>
       </div>
 
       <footer>SmartBuoy Team: Empowering Smarter Oceans</footer>
