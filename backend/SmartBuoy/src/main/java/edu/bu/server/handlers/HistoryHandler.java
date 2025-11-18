@@ -20,13 +20,12 @@ public class HistoryHandler implements HttpHandler {
     this.dataStore = dataStore;
   }
 
-  int statusCode;
-
   @Override
   public void handle(HttpExchange exchange) throws IOException {
 
     String strID = getBuoyIdFromPath(exchange);
     JSONObject json = new JSONObject();
+    int statusCode;
 
     try {
       int buoyId = Integer.parseInt(strID);
@@ -34,10 +33,7 @@ public class HistoryHandler implements HttpHandler {
 
       for (BuoyResponse r : dataStore.getHistory(buoyId)) {
         JSONObject obj = new JSONObject();
-        obj.put("buoyId", r.buoyId);
-        obj.put("measurementType", r.measurementType);
-        obj.put("value", r.measurementVal);
-        obj.put("timestamp", r.msSinceEpoch);
+        fillJsonResponse(obj, r);
         array.add(obj);
       }
 
@@ -56,6 +52,13 @@ public class HistoryHandler implements HttpHandler {
   private String getBuoyIdFromPath(HttpExchange exchange) {
     String[] parts = exchange.getRequestURI().getRawPath().split("/");
     return parts[parts.length - 1];
+  }
+
+  private void fillJsonResponse(JSONObject json, BuoyResponse response) {
+    json.put("buoyId", response.buoyId);
+    json.put("measurementType", response.measurementType);
+    json.put("value", response.measurementVal);
+    json.put("timestamp", response.msSinceEpoch);
   }
 
   private void sendJsonResponse(HttpExchange exchange, JSONObject json, int statusCode)

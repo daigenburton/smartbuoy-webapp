@@ -92,7 +92,25 @@ test {
 	}
 }
 
+task integrationTest(type: Test) {
+    useJUnitPlatform {
+        includeTags 'IntegrationTest'
+    }
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
+
+
 tasks.register('runServer', JavaExec) {
 	mainClass = 'edu.bu.SmartBuoyServer'
 	classpath = sourceSets.main.runtimeClasspath
+}
+
+tasks.register('mockData', JavaExec) {
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'edu.bu.mock.MockDataGenerator'
 }

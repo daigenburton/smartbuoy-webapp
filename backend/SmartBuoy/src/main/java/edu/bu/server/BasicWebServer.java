@@ -3,6 +3,7 @@ package edu.bu.server;
 import com.sun.net.httpserver.HttpServer;
 import edu.bu.data.DataStore;
 import edu.bu.server.handlers.HistoryHandler;
+import edu.bu.server.handlers.LatestMeasurementHandler;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import org.tinylog.Logger;
@@ -24,6 +25,11 @@ public class BasicWebServer {
 
     // Create handler for history requests for individual buoyIds
     server.createContext("/history", new HistoryHandler(store));
+
+    // Create handlers for specfic data requests for individual buoyIds
+    server.createContext("/temp", new LatestMeasurementHandler(store, "temperature"));
+    server.createContext("/pressure", new LatestMeasurementHandler(store, "pressure"));
+    server.createContext("/location", new LatestMeasurementHandler(store, "location"));
 
     // Start the server
     server.setExecutor(null); // Use the default executor

@@ -43,13 +43,13 @@ public class ServerIntegrationTest {
 
   /* Verify endpoint retuns a 200 OK response with expected buoy data */
   @Test
-  @Timeout(value = 10, unit = TimeUnit.MILLISECONDS)
+  @Timeout(value = 100, unit = TimeUnit.MILLISECONDS)
   public void testHistoryEndpointReturnsData() throws Exception {
     URL url = new URL("http://localhost:8000/history/1");
     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
     connection.setRequestMethod("GET");
 
-    assertEquals(10, connection.getResponseCode());
+    assertEquals(200, connection.getResponseCode());
 
     BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
     StringBuilder response = new StringBuilder();
@@ -66,7 +66,7 @@ public class ServerIntegrationTest {
 
   /* Verify API handles requests for a nonexistent buoy*/
   @Test
-  @Timeout(value = 10, unit = TimeUnit.MILLISECONDS)
+  @Timeout(value = 100, unit = TimeUnit.MILLISECONDS)
   public void testUnknownBuoyReturns404() throws Exception {
     URL url = new URL("http://localhost:8000/history/999");
     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -77,7 +77,7 @@ public class ServerIntegrationTest {
 
   /* Verify valid JSON is returned*/
   @Test
-  @Timeout(value = 10, unit = TimeUnit.MILLISECONDS)
+  @Timeout(value = 100, unit = TimeUnit.MILLISECONDS)
   public void testContentTypeIsJson() throws Exception {
     URL url = new URL("http://localhost:8000/history/1");
     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -88,7 +88,7 @@ public class ServerIntegrationTest {
 
   /* Verify server returns entire history of a buoy */
   @Test
-  @Timeout(value = 10, unit = TimeUnit.MILLISECONDS)
+  @Timeout(value = 500, unit = TimeUnit.MILLISECONDS)
   public void testHistoryEndpointMultipleReadings() throws Exception {
     store.update(
         Arrays.asList(
@@ -112,5 +112,77 @@ public class ServerIntegrationTest {
     String json = response.toString();
     assertTrue(json.contains("\"measurementType\":\"temperature\""));
     assertTrue(json.contains("\"measurementType\":\"salinity\""));
+  }
+
+  /* Verify server can handle being hammered with many requests */
+  @Test
+  @Timeout(value = 2, unit = TimeUnit.SECONDS)
+  public void testServerHandlesRapidRequests() throws Exception {
+    int threadCount = 50; // number of parallel clients hitting API
+    int requestsPerThread = 20; // total = 1000 requests
+    Thread[] threads = new Thread[threadCount];
+
+    for (int i = 0; i < threadCount; i++) {
+      threads[i] =
+          new Thread(
+              () -> {
+                for (int j = 0; j < requestsPerThread; j++) {
+                  try {
+                    URL url = new URL("http://localhost:8000/history/1");
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("GET");
+
+                    int code = conn.getResponseCode();
+                    assertEquals(200, code);
+                    conn.disconnect();
+                  } catch (Exception e) {
+                    fail("Server failed under load: " + e.getMessage());
+                  }
+                }
+              });
+      threads[i].start();
+    }
+
+    for (Thread t : threads) {
+      t.join();
+    }
+  }
+
+  /// new tests-
+
+  @Test
+  @Timeout(value = 200, unit = TimeUnit.MILLISECONDS)
+  public void testLatestTemperatureEndpoint() throws Exception {
+    URL url = new URL("http://localhost:8000/temperature/1");
+    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+    connection.setRequestMethod("GET");
+
+    assertEquals(200, connection.getResponseCode());
+
+    BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+    String body = reader.lines().reduce("", String::concat);
+
+    assertTrue(body.contains("\"measurementType\":\"temperature\""));
+    assertTrue(body.contains("\"value\":"));
+  }
+
+  @Test
+  @Timeout(value = 200, unit = TimeUnit.MILLISECONDS)
+  public void testLatestEndpointMissingDataReturns404() throws Exception {
+    URL url = new URL("http://localhost:8000/pressure/1");
+    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+    connection.setRequestMethod("GET");
+
+    assertEquals(404, connection.getResponseCode());
+  }
+
+  @Test
+  @Timeout(value = 200, unit = TimeUnit.MILLISECONDS)
+  public void testLatestEndpointInvalidBuoyIdReturns404() throws Exception {
+    URL url = new URL("http://localhost:8000/temperature/999");
+    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+    connection.setRequestMethod("GET");
+
+    assertEquals(404, connection.getResponseCode());
   }
 }

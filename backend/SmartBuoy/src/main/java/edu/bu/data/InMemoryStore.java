@@ -3,8 +3,10 @@ package edu.bu.data;
 import edu.bu.analytics.UnknownBuoyException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** In-memory data store used to hold buoy readings */
@@ -17,14 +19,20 @@ public class InMemoryStore implements DataStore {
   @Override
   public void update(List<BuoyResponse> responses) {
 
+    long oneWeekAgo = System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000;
+
     // loop through all new sensor readings, get buoyId, add new readings to buoy's list
     for (BuoyResponse response : responses) {
       if (response == null) continue;
       int buoyId = response.buoyId;
-      // storedData.computeIfAbsent(buoyId, k -> new ArrayList<>()).add(response);
-      storedData
-          .computeIfAbsent(buoyId, k -> Collections.synchronizedList(new ArrayList<>()))
-          .add(response);
+
+      List<BuoyResponse> list =
+          storedData.computeIfAbsent(buoyId, k -> Collections.synchronizedList(new ArrayList<>()));
+
+      list.add(response);
+
+      // remove values older than a week old
+      list.removeIf(r -> r.msSinceEpoch < oneWeekAgo);
     }
   }
 
@@ -38,5 +46,18 @@ public class InMemoryStore implements DataStore {
 
     List<BuoyResponse> history = storedData.get(buoyId);
     return new ArrayList<>(history);
+  }
+
+  @Override
+  public Optional<BuoyResponse> getLatest(int buoyId, String measurementType)
+      throws UnknownBuoyException {
+
+    if (!storedData.containsKey(buoyId)) {
+      throw new UnknownBuoyException(buoyId);
+    }
+
+    return storedData.get(buoyId).stream()
+        .filter(r -> r.measurementType.equalsIgnoreCase(measurementType))
+        .max(Comparator.comparingLong(r -> r.msSinceEpoch));
   }
 }
