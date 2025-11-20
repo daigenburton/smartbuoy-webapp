@@ -179,35 +179,35 @@ export default function DashboardContent() {
             </div>
 
             {/* Relative map box */}
-            <div className="relative flex-1 rounded-lg border border-dashed border-gray-300 bg-white overflow-hidden mt-1">
-              {firstLocation ? (
+            <div className="relative mt-1 h-40 rounded-lg border border-dashed border-gray-300 bg-white overflow-hidden">
+            {firstLocation ? (
                 <>
-                  {/* Origin point (center) */}
-                  <div
+                {/* Origin point (center) */}
+                <div
                     className="absolute w-3 h-3 rounded-full bg-gray-400"
                     style={{
-                      left: "50%",
-                      top: "50%",
-                      transform: "translate(-50%, -50%)",
+                    left: "50%",
+                    top: "50%",
+                    transform: "translate(-50%, -50%)",
                     }}
-                  />
+                />
 
-                  {/* Current point, offset from center */}
-                  <div
+                {/* Current point, offset from center */}
+                <div
                     className="absolute w-4 h-4 rounded-full bg-emerald-500 border-2 border-white shadow"
                     style={{
-                      // simple scaling from lat/lon difference -> pixel offsets
-                      left: `calc(50% + ${(data.longitude - firstLocation.longitude) * 8000}px)`,
-                      top: `calc(50% - ${(data.latitude - firstLocation.latitude) * 8000}px)`,
-                      transform: "translate(-50%, -50%)",
+                    // simple scaling from lat/lon difference -> pixel offsets
+                    left: `calc(50% + ${(data.longitude - firstLocation.longitude) * 8000}px)`,
+                    top: `calc(50% - ${(data.latitude - firstLocation.latitude) * 8000}px)`,
+                    transform: "translate(-50%, -50%)",
                     }}
-                  />
+                />
                 </>
-              ) : (
+            ) : (
                 <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
-                  Waiting for first location…
+                Waiting for first location…
                 </div>
-              )}
+            )}
             </div>
           </div>
         </div>
