@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, ChangeEvent } from "react"
 
 type BuoyId = "buoy-1" | "buoy-2" | "buoy-3"
 
@@ -18,8 +18,12 @@ type BuoyData = {
   lastUpdated: string
 }
 
+type Location = {
+  latitude: number
+  longitude: number
+}
+
 function createMockData(buoyId: BuoyId): BuoyData {
-  // NOTE: for now this is mock data – later you’ll replace this with a fetch()
   const now = new Date().toLocaleTimeString()
   const baseTemp = buoyId === "buoy-1" ? 52 : buoyId === "buoy-2" ? 55 : 49
   const basePressure = buoyId === "buoy-1" ? 1015 : buoyId === "buoy-2" ? 1012 : 1008
@@ -36,16 +40,40 @@ function createMockData(buoyId: BuoyId): BuoyData {
 export default function DashboardContent() {
   const [selectedBuoy, setSelectedBuoy] = useState<BuoyId>("buoy-1")
   const [data, setData] = useState<BuoyData>(() => createMockData("buoy-1"))
+  const [firstLocation, setFirstLocation] = useState<Location | null>(null)
 
-  const handleChangeBuoy = (event: React.ChangeEvent<HTMLSelectElement>) => {
+  // Ensure we capture the first location on initial load
+  useEffect(() => {
+    if (!firstLocation) {
+      setFirstLocation({
+        latitude: data.latitude,
+        longitude: data.longitude,
+      })
+    }
+  }, [data, firstLocation])
+
+  const handleChangeBuoy = (event: ChangeEvent<HTMLSelectElement>) => {
     const id = event.target.value as BuoyId
     setSelectedBuoy(id)
-    setData(createMockData(id)) // later: call backend for that buoy
+
+    const newData = createMockData(id)
+    setData(newData)
+
+    // Reset the base (first) location when switching buoys
+    setFirstLocation({
+      latitude: newData.latitude,
+      longitude: newData.longitude,
+    })
   }
 
   const handleRefresh = () => {
-    setData(createMockData(selectedBuoy))
+    const newData = createMockData(selectedBuoy)
+    setData(newData)
+    // Note: we do NOT change firstLocation here,
+    // so the relative map shows movement from the original point
   }
+
+  const selectedBuoyName = BUOYS.find(b => b.id === selectedBuoy)?.name ?? "Selected Buoy"
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6">
@@ -54,7 +82,7 @@ export default function DashboardContent() {
         <div>
           <h1 className="h1 mb-1">SmartBuoy Dashboard</h1>
           <p className="text-sm text-gray-500">
-            Monitoring key stats for <span className="font-semibold">{BUOYS.find(b => b.id === selectedBuoy)?.name}</span>
+            Monitoring key stats for <span className="font-semibold">{selectedBuoyName}</span>
           </p>
           <p className="text-xs text-gray-400">Last updated: {data.lastUpdated}</p>
         </div>
@@ -95,7 +123,7 @@ export default function DashboardContent() {
             <span className="text-4xl font-bold text-emerald-500">
               {data.temperatureF.toFixed(1)}°F
             </span>
-            <span className="text-xs text-gray-400">Source: {BUOYS.find(b => b.id === selectedBuoy)?.name}</span>
+            <span className="text-xs text-gray-400">Source: {selectedBuoyName}</span>
           </div>
         </div>
 
@@ -124,24 +152,63 @@ export default function DashboardContent() {
           </p>
           <div className="space-y-2 text-sm">
             <p>
-              <span className="font-medium">Latitude:</span>{" "}
-              {data.latitude.toFixed(4)}
+              <span className="font-medium">Latitude:</span> {data.latitude.toFixed(4)}
             </p>
             <p>
-              <span className="font-medium">Longitude:</span>{" "}
-              {data.longitude.toFixed(4)}
+              <span className="font-medium">Longitude:</span> {data.longitude.toFixed(4)}
             </p>
           </div>
         </div>
 
-        {/* Map placeholder */}
+        {/* Relative position mini-map */}
         <div className="card flex flex-col">
-          <h2 className="text-lg font-semibold mb-2">Map View (Coming Soon)</h2>
+          <h2 className="text-lg font-semibold mb-2">Relative Position Map</h2>
           <p className="text-sm text-gray-500 mb-4">
-            This section will show the buoy on a live map once mapping is integrated.
+            Showing the buoy&apos;s current location relative to its first recorded position for this session.
           </p>
-          <div className="flex-1 rounded-lg border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-sm text-gray-400">
-            Map placeholder – integrate Leaflet / Mapbox later
+
+          <div className="flex-1 rounded-lg border border-gray-200 bg-slate-50 flex flex-col gap-3 p-4">
+            {/* Legend */}
+            <div className="flex items-center gap-3 text-xs text-gray-500">
+              <div className="flex items-center gap-1">
+                <span className="inline-block w-3 h-3 rounded-full bg-gray-400" /> First position
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="inline-block w-3 h-3 rounded-full bg-emerald-500" /> Current position
+              </div>
+            </div>
+
+            {/* Relative map box */}
+            <div className="relative flex-1 rounded-lg border border-dashed border-gray-300 bg-white overflow-hidden mt-1">
+              {firstLocation ? (
+                <>
+                  {/* Origin point (center) */}
+                  <div
+                    className="absolute w-3 h-3 rounded-full bg-gray-400"
+                    style={{
+                      left: "50%",
+                      top: "50%",
+                      transform: "translate(-50%, -50%)",
+                    }}
+                  />
+
+                  {/* Current point, offset from center */}
+                  <div
+                    className="absolute w-4 h-4 rounded-full bg-emerald-500 border-2 border-white shadow"
+                    style={{
+                      // simple scaling from lat/lon difference -> pixel offsets
+                      left: `calc(50% + ${(data.longitude - firstLocation.longitude) * 8000}px)`,
+                      top: `calc(50% - ${(data.latitude - firstLocation.latitude) * 8000}px)`,
+                      transform: "translate(-50%, -50%)",
+                    }}
+                  />
+                </>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
+                  Waiting for first location…
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </section>
