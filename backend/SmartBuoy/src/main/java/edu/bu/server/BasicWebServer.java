@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpServer;
 import edu.bu.data.DataStore;
 import edu.bu.server.handlers.HistoryHandler;
 import edu.bu.server.handlers.LatestMeasurementHandler;
+import edu.bu.server.handlers.UpdateHandler;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import org.tinylog.Logger;
@@ -27,9 +28,11 @@ public class BasicWebServer {
     server.createContext("/history", new HistoryHandler(store));
 
     // Create handlers for specfic data requests for individual buoyIds
-    server.createContext("/temp", new LatestMeasurementHandler(store, "temperature"));
+    server.createContext("/temperature", new LatestMeasurementHandler(store, "temperature"));
     server.createContext("/pressure", new LatestMeasurementHandler(store, "pressure"));
     server.createContext("/location", new LatestMeasurementHandler(store, "location"));
+
+    server.createContext("/update", new UpdateHandler(store));
 
     // Start the server
     server.setExecutor(null); // Use the default executor
