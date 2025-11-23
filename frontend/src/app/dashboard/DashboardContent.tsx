@@ -220,12 +220,11 @@
 
 import { useState, useEffect, ChangeEvent } from "react"
 
-type BuoyId = "buoy-1" | "buoy-2" | "buoy-3"
+type BuoyId = "buoy-1" | "buoy-2"
 
 const BUOYS: { id: BuoyId; name: string }[] = [
   { id: "buoy-1", name: "Buoy #1" },
   { id: "buoy-2", name: "Buoy #2" },
-  { id: "buoy-3", name: "Buoy #3" },
 ]
 
 type BuoyData = {
@@ -241,18 +240,11 @@ type Location = {
   longitude: number
 }
 
-// Map BuoyId string to backend numeric ID
-const BUOY_NUMERIC_ID: Record<BuoyId, number> = {
-  "buoy-1": 1,
-  "buoy-2": 2,
-  "buoy-3": 3,
-}
-
-// Local mock data (used as fallback if backend is down / missing)
+// Local mock data (used as fallback if backend/API route fails)
 function createMockData(buoyId: BuoyId): BuoyData {
   const now = new Date().toLocaleTimeString()
-  const baseTemp = buoyId === "buoy-1" ? 52 : buoyId === "buoy-2" ? 55 : 49
-  const basePressure = buoyId === "buoy-1" ? 1015 : buoyId === "buoy-2" ? 1012 : 1008
+  const baseTemp = buoyId === "buoy-1" ? 52 : 55
+  const basePressure = buoyId === "buoy-1" ? 1015 : 1012
 
   return {
     temperatureF: baseTemp + Math.random() * 2,
@@ -263,42 +255,22 @@ function createMockData(buoyId: BuoyId): BuoyData {
   }
 }
 
-// Fetch latest temp, pressure, and location from backend
+// Fetch combined buoy data from our Next.js API route
 async function fetchBuoyDataFromApi(buoyId: BuoyId): Promise<BuoyData> {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000"
-  const numericId = BUOY_NUMERIC_ID[buoyId]
+  const res = await fetch(`/api/buoys/${buoyId}`, { cache: "no-store" })
 
-  // /temp/{id}, /pressure/{id}, /location/{id}
-  const tempUrl = `${baseUrl}/temp/${numericId}`
-  const pressureUrl = `${baseUrl}/pressure/${numericId}`
-  const locationUrl = `${baseUrl}/location/${numericId}`
-
-  const [tempRes, pressureRes, locationRes] = await Promise.all([
-    fetch(tempUrl, { cache: "no-store" }),
-    fetch(pressureUrl, { cache: "no-store" }),
-    fetch(locationUrl, { cache: "no-store" }),
-  ])
-
-  if (!tempRes.ok || !pressureRes.ok || !locationRes.ok) {
-    throw new Error(
-      `Backend returned non-OK status: temp=${tempRes.status}, pressure=${pressureRes.status}, location=${locationRes.status}`,
-    )
+  if (!res.ok) {
+    throw new Error(`API route responded with status ${res.status}`)
   }
 
-  const tempJson = await tempRes.json()
-  const pressureJson = await pressureRes.json()
-  const locationJson = await locationRes.json()
-
-  // NOTE: tempJson.value is whatever units backend uses; if it's °C and you want °F, convert here:
-  // const temperatureF = tempJson.value * 9/5 + 32
-  const temperatureF = tempJson.value
+  const json = await res.json()
 
   return {
-    temperatureF,
-    pressureHpa: pressureJson.value,
-    latitude: locationJson.latitude,
-    longitude: locationJson.longitude,
-    lastUpdated: new Date(locationJson.timestamp).toLocaleTimeString(),
+    temperatureF: json.temperatureF,
+    pressureHpa: json.pressureHpa,
+    latitude: json.latitude,
+    longitude: json.longitude,
+    lastUpdated: new Date(json.timestamp).toLocaleTimeString(),
   }
 }
 
@@ -312,11 +284,8 @@ export default function DashboardContent() {
   const selectedBuoyName =
     BUOYS.find(b => b.id === selectedBuoy)?.name ?? "Selected Buoy"
 
-  // Helper to load from backend with mock fallback
-  const loadBuoyData = async (
-    buoyId: BuoyId,
-    resetFirstLocation: boolean,
-  ) => {
+  // Helper to load from API route with mock fallback
+  const loadBuoyData = async (buoyId: BuoyId, resetFirstLocation: boolean) => {
     setIsLoading(true)
     setError(null)
 
@@ -331,7 +300,7 @@ export default function DashboardContent() {
         })
       }
     } catch (err) {
-      console.error("Error fetching from backend, falling back to mock data:", err)
+      console.error("Error fetching from API route, falling back to mock data:", err)
       setError("Using mock data (backend not reachable or no data for this buoy).")
 
       const mock = createMockData(buoyId)
@@ -348,7 +317,7 @@ export default function DashboardContent() {
     }
   }
 
-  // On mount, try to load buoy-1 from backend
+  // On mount, try to load buoy-1 from API route
   useEffect(() => {
     void loadBuoyData("buoy-1", true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -374,9 +343,7 @@ export default function DashboardContent() {
             Monitoring key stats for{" "}
             <span className="font-semibold">{selectedBuoyName}</span>
           </p>
-          <p className="text-xs text-gray-400">
-            Last updated: {data.lastUpdated}
-          </p>
+          <p className="text-xs text-gray-400">Last updated: {data.lastUpdated}</p>
           {error && (
             <p className="text-xs text-amber-600 mt-1">
               {error}
