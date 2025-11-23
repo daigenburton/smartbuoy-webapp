@@ -18,13 +18,14 @@ public class MockDataGenerator {
 
     long now = System.currentTimeMillis();
 
-    // Base GPS coordinates for 2 buoys
+    // Base GPS coordinates for 3 buoys
     double[][] buoyLocations = {
       {42.35, -70.90}, // Buoy 1 near Boston Harbor
-      {41.70, -70.00} // Buoy 3 near Cape Cod
+      {41.70, -70.00}, // Buoy 3 near Cape Cod
+      {43.10, -70.70} // Buoy 3 near Portsmouth NH
     };
 
-    for (int buoyId = 1; buoyId <= 2; buoyId++) {
+    for (int buoyId = 1; buoyId <= 3; buoyId++) {
 
       double baseLat = buoyLocations[buoyId - 1][0];
       double baseLon = buoyLocations[buoyId - 1][1];
