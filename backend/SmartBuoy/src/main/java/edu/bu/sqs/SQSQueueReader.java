@@ -19,8 +19,11 @@ import software.amazon.awssdk.services.sqs.model.*;
 public class SQSQueueReader {
   private static final String SQS_QUEUE_NAME = "smartbuoy";
   private static final Region AWS_REGION = Region.US_EAST_1;
-  ProfileCredentialsProvider p = ProfileCredentialsProvider.builder().profileName("default").build();
-  SqsClient sqsClient = SqsClient.builder().credentialsProvider(p).region(AWS_REGION).build();
+  SqsClient sqsClient =
+      SqsClient.builder()
+          .region(Region.US_EAST_1)
+          .credentialsProvider(ProfileCredentialsProvider.create("default"))
+          .build();
 
   // Sleep durations
   private static final long BASE_SLEEP_MS = 100; // Sleep when messages available
