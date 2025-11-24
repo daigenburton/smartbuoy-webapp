@@ -220,11 +220,12 @@
 
 import { useState, useEffect, ChangeEvent } from "react"
 
-type BuoyId = "buoy-1" | "buoy-2"
+type BuoyId = "buoy-1" | "buoy-2" | "buoy-3"
 
 const BUOYS: { id: BuoyId; name: string }[] = [
   { id: "buoy-1", name: "Buoy #1" },
   { id: "buoy-2", name: "Buoy #2" },
+  { id: "buoy-3", name: "Buoy #3" },
 ]
 
 type BuoyData = {
@@ -243,8 +244,10 @@ type Location = {
 // Local mock data (used as fallback if backend/API route fails)
 function createMockData(buoyId: BuoyId): BuoyData {
   const now = new Date().toLocaleTimeString()
-  const baseTemp = buoyId === "buoy-1" ? 52 : 55
-  const basePressure = buoyId === "buoy-1" ? 1015 : 1012
+  const baseTemp =
+    buoyId === "buoy-1" ? 52 : buoyId === "buoy-2" ? 55 : 49
+  const basePressure =
+    buoyId === "buoy-1" ? 1015 : buoyId === "buoy-2" ? 1012 : 1008
 
   return {
     temperatureF: baseTemp + Math.random() * 2,
@@ -502,3 +505,4 @@ export default function DashboardContent() {
     </div>
   )
 }
+

@@ -11,7 +11,9 @@ type CombinedBuoyResponse = {
 const BUOY_NUMERIC_ID: Record<string, number> = {
   "buoy-1": 1,
   "buoy-2": 2,
+  "buoy-3": 3,
 }
+
 
 export async function GET(
   _req: Request,
@@ -31,15 +33,21 @@ export async function GET(
   }
 
   try {
-    const tempUrl = `${backendBase}/temp/${numericId}`
+    const tempUrl = `${backendBase}/temperature/${numericId}`
     const pressureUrl = `${backendBase}/pressure/${numericId}`
     const locationUrl = `${backendBase}/location/${numericId}`
 
     const [tempRes, pressureRes, locationRes] = await Promise.all([
-      fetch(tempUrl),
-      fetch(pressureUrl),
-      fetch(locationUrl),
+        fetch(tempUrl, { cache: "no-store" }),
+        fetch(pressureUrl, { cache: "no-store" }),
+        fetch(locationUrl, { cache: "no-store" }),
     ])
+
+    // const [tempRes, pressureRes, locationRes] = await Promise.all([
+    //   fetch(tempUrl),
+    //   fetch(pressureUrl),
+    //   fetch(locationUrl),
+    // ])
 
     if (!tempRes.ok || !pressureRes.ok || !locationRes.ok) {
       return NextResponse.json(

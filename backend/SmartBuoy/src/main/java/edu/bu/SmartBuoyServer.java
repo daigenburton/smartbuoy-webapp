@@ -20,10 +20,10 @@ public class SmartBuoyServer {
     Logger.info("Starting SmartBuoyServer with arguments: {}", List.of(args));
 
     // set up store
-    DataStore store = new InMemoryStore();
+    // DataStore store = new InMemoryStore();
 
     // when using mock data comment out above line and uncomment this-
-    // DataStore store = edu.bu.mock.MockDataGenerator.generate();
+    DataStore store = edu.bu.mock.MockDataGenerator.generate();
 
     // start web server
     BasicWebServer webServer = new BasicWebServer(store);
