@@ -7,7 +7,6 @@ import java.time.Duration;
 import java.util.List;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.*;
@@ -19,11 +18,7 @@ import software.amazon.awssdk.services.sqs.model.*;
 public class SQSQueueReader {
   private static final String SQS_QUEUE_NAME = "smartbuoy";
   private static final Region AWS_REGION = Region.US_EAST_1;
-  SqsClient sqsClient =
-      SqsClient.builder()
-          .region(Region.US_EAST_1)
-          .credentialsProvider(ProfileCredentialsProvider.create())
-          .build();
+  SqsClient sqsClient = SqsClient.builder().region(AWS_REGION).build();
 
   // Sleep durations
   private static final long BASE_SLEEP_MS = 100; // Sleep when messages available
