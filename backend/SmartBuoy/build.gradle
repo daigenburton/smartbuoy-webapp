@@ -75,6 +75,7 @@ dependencies {
 	implementation 'com.googlecode.json-simple:json-simple:1.1.1'
 	implementation 'org.tinylog:tinylog-api:2.7.0'
 	implementation 'org.tinylog:tinylog-impl:2.7.0'
+	implementation 'mysql:mysql-connector-java:8.0.33'
 }
 
 test {
@@ -93,15 +94,15 @@ test {
 }
 
 task integrationTest(type: Test) {
-    useJUnitPlatform {
-        includeTags 'IntegrationTest'
-    }
-    testClassesDirs = sourceSets.test.output.classesDirs
-    classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'IntegrationTest'
+	}
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
 
-    testLogging {
-        events "passed", "skipped", "failed"
-    }
+	testLogging {
+		events "passed", "skipped", "failed"
+	}
 }
 
 
