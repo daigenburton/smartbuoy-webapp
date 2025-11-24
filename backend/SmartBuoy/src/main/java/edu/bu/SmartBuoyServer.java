@@ -3,6 +3,7 @@ package edu.bu;
 import edu.bu.data.DataStore;
 import edu.bu.data.InMemoryStore;
 import edu.bu.server.BasicWebServer;
+import edu.bu.sqs.SQSQueueReader;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.List;
@@ -20,13 +21,17 @@ public class SmartBuoyServer {
     Logger.info("Starting SmartBuoyServer with arguments: {}", List.of(args));
 
     // set up store
-    // DataStore store = new InMemoryStore();
+    DataStore store = new InMemoryStore();
 
-    // when using mock data comment out above line and uncomment this-
-    DataStore store = edu.bu.mock.MockDataGenerator.generate();
+    // mock data-
+    // DataStore store = edu.bu.mock.MockDataGenerator.generate();
 
     // start web server
     BasicWebServer webServer = new BasicWebServer(store);
     webServer.start();
+
+    // start SQSQueueReader service
+    SQSQueueReader queueReader = new SQSQueueReader(store);
+    queueReader.start();
   }
 }

@@ -1,0 +1,29 @@
+version: "3.8"
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src
+    environment:
+      - NODE_ENV=development
+    command: npm run dev
+
+  backend:
+    build:
+      context: ./backend/SmartBuoy
+      dockerfile: Dockerfile
+    container_name: backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/SmartBuoy/src:/app/src
+      - gradle-cache:/home/gradle/.gradle
+    command: gradle runServer --no-daemon
+
+volumes:
+  gradle-cache:
