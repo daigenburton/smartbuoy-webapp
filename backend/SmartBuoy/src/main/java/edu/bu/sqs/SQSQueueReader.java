@@ -22,7 +22,7 @@ public class SQSQueueReader {
   SqsClient sqsClient =
       SqsClient.builder()
           .region(Region.US_EAST_1)
-          .credentialsProvider(ProfileCredentialsProvider.create("default"))
+          .credentialsProvider(ProfileCredentialsProvider.create())
           .build();
 
   // Sleep durations
