@@ -43,12 +43,6 @@ export async function GET(
         fetch(locationUrl, { cache: "no-store" }),
     ])
 
-    // const [tempRes, pressureRes, locationRes] = await Promise.all([
-    //   fetch(tempUrl),
-    //   fetch(pressureUrl),
-    //   fetch(locationUrl),
-    // ])
-
     if (!tempRes.ok || !pressureRes.ok || !locationRes.ok) {
       return NextResponse.json(
         {
