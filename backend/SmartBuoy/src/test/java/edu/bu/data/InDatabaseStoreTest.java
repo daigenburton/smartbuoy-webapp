@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.*;
 
+@Tag("DBTest")
 /** Test suite for InDatabaseStore */
 class InDatabaseStoreTest {
 
@@ -36,13 +37,13 @@ class InDatabaseStoreTest {
       stmt.execute(
           "CREATE TABLE IF NOT EXISTS buoy_data ("
               + "id BIGINT AUTO_INCREMENT PRIMARY KEY, "
-              + "buoy_id INT NOT NULL, "
-              + "measurement_type VARCHAR(50) NOT NULL, "
-              + "measurement_value DOUBLE NOT NULL, "
-              + "timestamp_ms BIGINT NOT NULL, "
+              + "buoyId INT NOT NULL, "
+              + "measurementType VARCHAR(50) NOT NULL, "
+              + "measurementVal DOUBLE NOT NULL, "
+              + "timestamp BIGINT NOT NULL, "
               + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
-              + "INDEX idx_buoy_timestamp (buoy_id, timestamp_ms), "
-              + "INDEX idx_buoy_type (buoy_id, measurement_type, timestamp_ms))");
+              + "INDEX idx_buoy_timestamp (buoyId, timestamp), "
+              + "INDEX idx_buoy_type (buoyId, measurementType, timestamp))");
     }
   }
 
@@ -74,13 +75,13 @@ class InDatabaseStoreTest {
     responses.add(new BuoyResponse("temperature", 22.5, 1, System.currentTimeMillis()));
     responses.add(new BuoyResponse("pressure", 1013.2, 1, System.currentTimeMillis()));
 
-   assertDoesNotThrow(() -> store.update(responses));
+    assertDoesNotThrow(() -> store.update(responses));
 
     store.update(responses);
-    
-    //for checking in mysql durring execution-
-    //System.out.println("Sleeping... Check smartbuoy_test.buoy_data NOW!");
-    //Thread.sleep(10000);
+
+    // for checking in mysql durring execution-
+    // System.out.println("Sleeping... Check smartbuoy_test.buoy_data NOW!");
+    // Thread.sleep(10000);
   }
 
   @Test
@@ -121,7 +122,7 @@ class InDatabaseStoreTest {
 
     assertTrue(latest.isPresent());
     assertEquals(25.0, latest.get().measurementVal);
-    assertEquals(now, latest.get().msSinceEpoch);
+    assertEquals(now, latest.get().timestamp);
   }
 
   @Test
@@ -204,7 +205,7 @@ class InDatabaseStoreTest {
     List<BuoyResponse> history = store.getHistory(1);
 
     assertEquals(3, history.size());
-    assertTrue(history.get(0).msSinceEpoch <= history.get(1).msSinceEpoch);
-    assertTrue(history.get(1).msSinceEpoch <= history.get(2).msSinceEpoch);
+    assertTrue(history.get(0).timestamp <= history.get(1).timestamp);
+    assertTrue(history.get(1).timestamp <= history.get(2).timestamp);
   }
 }
