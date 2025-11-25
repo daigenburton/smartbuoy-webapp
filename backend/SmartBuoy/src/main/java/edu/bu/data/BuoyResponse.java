@@ -8,14 +8,13 @@ public class BuoyResponse {
   public final int buoyId;
   public final double measurementVal;
   public final String measurementType; // temp, tide level, salinity, location
-  public final long msSinceEpoch; // timestamp
+  public final long timestamp; // ms
 
-  public BuoyResponse(
-      String measurementType, double measurementVal, int buoyId, long msSinceEpoch) {
+  public BuoyResponse(String measurementType, double measurementVal, int buoyId, long timestamp) {
     this.buoyId = buoyId;
     this.measurementVal = measurementVal;
     this.measurementType = measurementType;
-    this.msSinceEpoch = msSinceEpoch;
+    this.timestamp = timestamp;
   }
 
   @Override
@@ -27,7 +26,7 @@ public class BuoyResponse {
         + ", measurementType="
         + measurementType
         + ", time="
-        + Instant.ofEpochMilli(msSinceEpoch)
+        + Instant.ofEpochMilli(timestamp)
         + ", measurementVal="
         + measurementVal
         + '}';

@@ -163,7 +163,7 @@ public class ServerIntegrationTest {
     String body = reader.lines().reduce("", String::concat);
 
     assertTrue(body.contains("\"measurementType\":\"temperature\""));
-    assertTrue(body.contains("\"value\":"));
+    assertTrue(body.contains("\"measurementVal\":"));
   }
 
   @Test

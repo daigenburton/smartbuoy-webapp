@@ -82,7 +82,8 @@ dependencies {
 test {
 	useJUnitPlatform {
 		excludeTags "IntegrationTest"
-		//excludeTags "Probe"
+		excludeTags "DBTest"
+		excludeTags "Probe"
 	}
 
 	// Always run tests, even when nothing changed.

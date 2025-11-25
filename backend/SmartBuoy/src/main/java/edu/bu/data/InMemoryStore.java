@@ -32,7 +32,7 @@ public class InMemoryStore implements DataStore {
       list.add(response);
 
       // remove values older than a week old
-      list.removeIf(r -> r.msSinceEpoch < oneWeekAgo);
+      list.removeIf(r -> r.timestamp < oneWeekAgo);
     }
   }
 
@@ -58,6 +58,6 @@ public class InMemoryStore implements DataStore {
 
     return storedData.get(buoyId).stream()
         .filter(r -> r.measurementType.equalsIgnoreCase(measurementType))
-        .max(Comparator.comparingLong(r -> r.msSinceEpoch));
+        .max(Comparator.comparingLong(r -> r.timestamp));
   }
 }

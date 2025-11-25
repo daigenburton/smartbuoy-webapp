@@ -57,8 +57,8 @@ public class HistoryHandler implements HttpHandler {
   private void fillJsonResponse(JSONObject json, BuoyResponse response) {
     json.put("buoyId", response.buoyId);
     json.put("measurementType", response.measurementType);
-    json.put("value", response.measurementVal);
-    json.put("timestamp", response.msSinceEpoch);
+    json.put("measurementVal", response.measurementVal);
+    json.put("timestamp", response.timestamp);
   }
 
   private void sendJsonResponse(HttpExchange exchange, JSONObject json, int statusCode)

@@ -86,7 +86,7 @@
 //   private void fillJsonResponse(JSONObject json, BuoyResponse response) {
 //     json.put("buoyId", response.buoyId);
 //     json.put("measurementType", response.measurementType);
-//     json.put("value", response.measurementVal);
+//     json.put("measurementVal", response.measurementVal);
 //     json.put("timestamp", response.msSinceEpoch);
 //   }
 
@@ -116,12 +116,11 @@ import org.json.simple.JSONObject;
 import org.tinylog.Logger;
 
 /**
- * Handles requests like /temperature/{id}, /pressure/{id}, /location/{id}
- * and returns the latest (simulated live) measurement.
+ * Handles requests like /temperature/{id}, /pressure/{id}, /location/{id} and returns the latest
+ * (simulated live) measurement.
  *
- * For mock/demo mode:
- *  - Each request slightly perturbs the last known reading and stores a new one,
- *    so values change over time when the frontend refreshes.
+ * <p>For mock/demo mode: - Each request slightly perturbs the last known reading and stores a new
+ * one, so values change over time when the frontend refreshes.
  */
 public class LatestMeasurementHandler implements HttpHandler {
 
@@ -173,14 +172,10 @@ public class LatestMeasurementHandler implements HttpHandler {
   /**
    * Handle non-location scalar measurements like temperature or pressure.
    *
-   * For mock data, we:
-   *  - get the latest reading
-   *  - create a slightly jittered new reading
-   *  - store it
-   *  - return the new reading
+   * <p>For mock data, we: - get the latest reading - create a slightly jittered new reading - store
+   * it - return the new reading
    */
-  private int handleScalarMeasurement(int buoyId, JSONObject json)
-      throws UnknownBuoyException {
+  private int handleScalarMeasurement(int buoyId, JSONObject json) throws UnknownBuoyException {
 
     Optional<BuoyResponse> latestOpt = dataStore.getLatest(buoyId, measurementType);
 
@@ -197,10 +192,7 @@ public class LatestMeasurementHandler implements HttpHandler {
 
     BuoyResponse newReading =
         new BuoyResponse(
-            latest.measurementType,
-            newValue,
-            latest.buoyId,
-            System.currentTimeMillis());
+            latest.measurementType, newValue, latest.buoyId, System.currentTimeMillis());
 
     // Store new reading so "latest" moves forward over time
     dataStore.update(Arrays.asList(newReading));
@@ -210,8 +202,8 @@ public class LatestMeasurementHandler implements HttpHandler {
   }
 
   /**
-   * Handle location requests by jittering latitude/longitude slightly
-   * and storing a new "latest" position.
+   * Handle location requests by jittering latitude/longitude slightly and storing a new "latest"
+   * position.
    */
   private int handleLocation(int buoyId, JSONObject json) throws UnknownBuoyException {
 
@@ -223,8 +215,7 @@ public class LatestMeasurementHandler implements HttpHandler {
       return 404;
     }
 
-    BuoyResponse latestLat = latOpt.get();
-    BuoyResponse latestLon = lonOpt.get();
+    BuoyResponse latestLat = latOpt.get(), latestLon = lonOpt.get();
 
     // Jitter coordinates slightly (very small drift)
     double latJitter = (rand.nextDouble() - 0.5) * 0.0005; // ~±0.00025 deg
@@ -233,12 +224,10 @@ public class LatestMeasurementHandler implements HttpHandler {
     double newLat = latestLat.measurementVal + latJitter;
     double newLon = latestLon.measurementVal + lonJitter;
 
-    long timestamp = System.currentTimeMillis();
-
     BuoyResponse newLatResp =
-        new BuoyResponse("latitude", newLat, buoyId, timestamp);
+        new BuoyResponse("latitude", newLat, buoyId, System.currentTimeMillis());
     BuoyResponse newLonResp =
-        new BuoyResponse("longitude", newLon, buoyId, timestamp);
+        new BuoyResponse("longitude", newLon, buoyId, System.currentTimeMillis());
 
     // Store updated location
     dataStore.update(Arrays.asList(newLatResp, newLonResp));
@@ -246,14 +235,12 @@ public class LatestMeasurementHandler implements HttpHandler {
     json.put("buoyId", buoyId);
     json.put("latitude", newLat);
     json.put("longitude", newLon);
-    json.put("timestamp", timestamp);
+    json.put("timestamp", System.currentTimeMillis());
 
     return 200;
   }
 
-  /**
-   * Decide how much to jitter each measurement type
-   */
+  /** Decide how much to jitter each measurement type */
   private double createJitterForMeasurement(String measurementType) {
     if ("temperature".equalsIgnoreCase(measurementType)) {
       // e.g., ±0.2 degrees
@@ -269,8 +256,8 @@ public class LatestMeasurementHandler implements HttpHandler {
   private void fillJsonResponse(JSONObject json, BuoyResponse response) {
     json.put("buoyId", response.buoyId);
     json.put("measurementType", response.measurementType);
-    json.put("value", response.measurementVal);
-    json.put("timestamp", response.msSinceEpoch);
+    json.put("measurementVal", response.measurementVal);
+    json.put("timestamp", response.timestamp);
   }
 
   private void sendJsonResponse(HttpExchange exchange, JSONObject json, int statusCode)

@@ -26,6 +26,14 @@ public class SmartBuoyServer {
     // mock data-
     // DataStore store = edu.bu.mock.MockDataGenerator.generate();
 
+    /*
+    // Load database configuration
+    DatabaseConfig dbConfig = new DatabaseConfig("database.properties");
+    // Create database store
+    DataStore store =
+        new InDatabaseStore(dbConfig.getJdbcUrl(), dbConfig.getUsername(), dbConfig.getPassword());
+    */
+
     // start web server
     BasicWebServer webServer = new BasicWebServer(store);
     webServer.start();
