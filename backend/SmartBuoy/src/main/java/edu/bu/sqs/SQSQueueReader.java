@@ -1,10 +1,13 @@
 package edu.bu.sqs;
 
+import edu.bu.analytics.geofence.GeofenceService;
 import edu.bu.data.BuoyResponse;
 import edu.bu.data.DataStore;
+import edu.bu.data.Deployment;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import software.amazon.awssdk.regions.Region;
@@ -167,11 +170,48 @@ public class SQSQueueReader {
 
       dataStore.update(List.of(response));
 
+      checkGeofence(buoyId, measurementType);
+
       System.out.println("Data for buoy " + buoyId + ": " + dataStore.getHistory(buoyId));
 
     } catch (Exception e) {
       System.err.println("Error processing message: " + e.getMessage());
       throw new RuntimeException(e);
+    }
+  }
+
+  /** Checks if buoy is out of user-defined bounds */
+  private void checkGeofence(int buoyId, String measurementType) {
+    // Only check geofence for location updates
+    if (!measurementType.equals("latitude") && !measurementType.equals("longitude")) {
+      return;
+    }
+
+    try {
+      Optional<BuoyResponse> latOpt = dataStore.getLatest(buoyId, "latitude");
+      Optional<BuoyResponse> lonOpt = dataStore.getLatest(buoyId, "longitude");
+
+      if (!latOpt.isPresent() || !lonOpt.isPresent()) {
+        return;
+      }
+
+      Optional<Deployment> deploymentOpt = dataStore.getDeployment(buoyId);
+      if (!deploymentOpt.isPresent()) {
+        return;
+      }
+
+      double lat = latOpt.get().measurementVal;
+      double lon = lonOpt.get().measurementVal;
+      Deployment deployment = deploymentOpt.get();
+
+      boolean outside = GeofenceService.isOutsideFence(deployment, lat, lon);
+
+      if (outside) {
+        System.out.println("ALERT: Buoy " + buoyId + " left geofence!");
+      }
+
+    } catch (Exception e) {
+      System.err.println("Error in geofence check (non-fatal): " + e.getMessage());
     }
   }
 

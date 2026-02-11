@@ -117,7 +117,7 @@ import org.tinylog.Logger;
 
 /**
  * Handles requests like /temperature/{id}, /pressure/{id}, /location/{id} and returns the latest
- * (simulated live) measurement.
+ * measurement.
  *
  * <p>For mock/demo mode: - Each request slightly perturbs the last known reading and stores a new
  * one, so values change over time when the frontend refreshes.

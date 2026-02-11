@@ -83,8 +83,6 @@ public class InMemoryStoreTest {
     assertNotSame(history1, history2);
   }
 
-  /// new tests-
-
   @Test
   public void testOldDataIsDiscarded() throws Exception {
     long now = System.currentTimeMillis();
@@ -142,5 +140,20 @@ public class InMemoryStoreTest {
   @Test
   public void testGetLatestUnknownBuoyThrowsException() {
     assertThrows(UnknownBuoyException.class, () -> store.getLatest(999, "temperature"));
+  }
+
+  @Test
+  public void testSaveAndGetDeployment() {
+    Deployment d = new Deployment(1, 42.0, -70.0, 30.0, System.currentTimeMillis());
+
+    store.saveDeployment(d);
+
+    Optional<Deployment> fetchedOpt = store.getDeployment(1);
+    assertTrue(fetchedOpt.isPresent());
+
+    Deployment fetched = fetchedOpt.get();
+    assertEquals(42.0, fetched.lat);
+    assertEquals(-70.0, fetched.lon);
+    assertEquals(30.0, fetched.allowedRadiusMeters);
   }
 }

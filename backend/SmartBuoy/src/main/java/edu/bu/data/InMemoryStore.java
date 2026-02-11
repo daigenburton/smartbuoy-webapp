@@ -60,4 +60,16 @@ public class InMemoryStore implements DataStore {
         .filter(r -> r.measurementType.equalsIgnoreCase(measurementType))
         .max(Comparator.comparingLong(r -> r.timestamp));
   }
+
+  private final Map<Integer, Deployment> deployments = new ConcurrentHashMap<>();
+
+  @Override
+  public void saveDeployment(Deployment deployment) {
+    deployments.put(deployment.buoyId, deployment);
+  }
+
+  @Override
+  public Optional<Deployment> getDeployment(int buoyId) {
+    return Optional.ofNullable(deployments.get(buoyId));
+  }
 }
