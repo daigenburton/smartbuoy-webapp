@@ -32,9 +32,7 @@ public class HistoryHandler implements HttpHandler {
       JSONArray array = new JSONArray();
 
       for (BuoyResponse r : dataStore.getHistory(buoyId)) {
-        JSONObject obj = new JSONObject();
-        fillJsonResponse(obj, r);
-        array.add(obj);
+        array.add(r.toJSON());
       }
 
       json.put("history", array);
@@ -43,6 +41,9 @@ public class HistoryHandler implements HttpHandler {
     } catch (UnknownBuoyException e) {
       json.put("error", e.getMessage());
       statusCode = 404;
+    } catch (NumberFormatException e) {
+      json.put("error", "Invalid buoy id");
+      statusCode = 400;
     }
 
     sendJsonResponse(exchange, json, statusCode);
@@ -52,13 +53,6 @@ public class HistoryHandler implements HttpHandler {
   private String getBuoyIdFromPath(HttpExchange exchange) {
     String[] parts = exchange.getRequestURI().getRawPath().split("/");
     return parts[parts.length - 1];
-  }
-
-  private void fillJsonResponse(JSONObject json, BuoyResponse response) {
-    json.put("buoyId", response.buoyId);
-    json.put("measurementType", response.measurementType);
-    json.put("measurementVal", response.measurementVal);
-    json.put("timestamp", response.timestamp);
   }
 
   private void sendJsonResponse(HttpExchange exchange, JSONObject json, int statusCode)

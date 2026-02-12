@@ -8,8 +8,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.Instant;
+import java.util.Collections;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.tinylog.Logger;
@@ -33,19 +33,17 @@ public class UpdateHandler implements HttpHandler {
 
     try {
       JSONObject requestJson = parseRequestBody(exchange);
-      int buoyId = ((Long) requestJson.get("buoyId")).intValue();
-      long timestamp = (Long) requestJson.get("timestamp");
-      List<BuoyResponse> responses = buildBuoyResponse(requestJson, buoyId, timestamp);
+      BuoyResponse response = buildBuoyResponse(requestJson);
 
-      dataStore.update(responses);
-      Logger.info("Received update for buoy {} with {} measurements", buoyId, responses.size());
+      dataStore.update(Collections.singletonList(response));
+      Logger.info(
+          "Received update for buoy {} at {}", response.getBuoyId(), response.getTimestamp());
 
       sendJsonResponse(exchange, buildSuccessResponse(), 200);
 
     } catch (Exception e) {
       Logger.error("Error processing update: {}", e.getMessage(), e);
-      exchange.sendResponseHeaders(400, 0);
-      exchange.close();
+      sendJsonResponse(exchange, buildErrorResponse(e.getMessage()), 400);
     }
   }
 
@@ -55,36 +53,48 @@ public class UpdateHandler implements HttpHandler {
             .parse(new BufferedReader(new InputStreamReader(exchange.getRequestBody())));
   }
 
-  private List<BuoyResponse> buildBuoyResponse(JSONObject json, int buoyId, long timestamp) {
-    List<BuoyResponse> responses = new ArrayList<>();
+  private BuoyResponse buildBuoyResponse(JSONObject json) throws Exception {
+    // Extract required fields
+    int buoyId = ((Long) json.get("buoyId")).intValue();
 
-    if (json.containsKey("temperature")) {
-      responses.add(
-          new BuoyResponse(
-              "temperature", ((Number) json.get("temperature")).doubleValue(), buoyId, timestamp));
-    }
-    if (json.containsKey("pressure")) {
-      responses.add(
-          new BuoyResponse(
-              "pressure", ((Number) json.get("pressure")).doubleValue(), buoyId, timestamp));
-    }
-    if (json.containsKey("latitude")) {
-      responses.add(
-          new BuoyResponse(
-              "latitude", ((Number) json.get("latitude")).doubleValue(), buoyId, timestamp));
-    }
-    if (json.containsKey("longitude")) {
-      responses.add(
-          new BuoyResponse(
-              "longitude", ((Number) json.get("longitude")).doubleValue(), buoyId, timestamp));
+    // Timestamp - support both long (millis) and ISO string
+    Instant timestamp;
+    Object timestampObj = json.get("timestamp");
+    if (timestampObj instanceof Long) {
+      timestamp = Instant.ofEpochMilli((Long) timestampObj);
+    } else if (timestampObj instanceof String) {
+      timestamp = Instant.parse((String) timestampObj);
+    } else {
+      timestamp = Instant.now();
     }
 
-    return responses;
+    // Extract sensor readings (all required)
+    if (!json.containsKey("temperature")
+        || !json.containsKey("pressure")
+        || !json.containsKey("latitude")
+        || !json.containsKey("longitude")) {
+      throw new IllegalArgumentException(
+          "Missing required fields. Need: temperature, pressure, latitude, longitude");
+    }
+
+    double temperature = ((Number) json.get("temperature")).doubleValue();
+    double pressure = ((Number) json.get("pressure")).doubleValue();
+    double latitude = ((Number) json.get("latitude")).doubleValue();
+    double longitude = ((Number) json.get("longitude")).doubleValue();
+
+    return new BuoyResponse(buoyId, timestamp, temperature, pressure, latitude, longitude);
   }
 
   private JSONObject buildSuccessResponse() {
     JSONObject json = new JSONObject();
     json.put("status", "ok");
+    return json;
+  }
+
+  private JSONObject buildErrorResponse(String message) {
+    JSONObject json = new JSONObject();
+    json.put("status", "error");
+    json.put("message", message);
     return json;
   }
 
