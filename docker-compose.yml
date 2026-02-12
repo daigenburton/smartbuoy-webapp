@@ -9,6 +9,8 @@ services:
       - "3000:3000"
     volumes:
       - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - /app/node_modules  # Prevent overwriting node_modules
     environment:
       - NODE_ENV=development
     command: npm run dev
@@ -22,8 +24,30 @@ services:
       - "8000:8000"
     volumes:
       - ./backend/SmartBuoy/src:/app/src
+      - ./backend/SmartBuoy/build.gradle:/app/build.gradle
+      - ./backend/SmartBuoy/settings.gradle:/app/settings.gradle
+      - ./backend/SmartBuoy/.git:/app/.git:ro
       - gradle-cache:/home/gradle/.gradle
-    command: gradle runServer --no-daemon
+    command: gradle runServer --continuous --no-daemon
+
+  influxdb:
+      image: influxdb
+      container_name: influxdb
+      ports:
+        - "8086:8086"
+      volumes:
+        - influxdb-data:/var/lib/influxdb2
+        - influxdb-config:/etc/influxdb2
+      environment:
+        - DOCKER_INFLUXDB_INIT_MODE=setup
+        - DOCKER_INFLUXDB_INIT_USERNAME=admin
+        - DOCKER_INFLUXDB_INIT_PASSWORD=
+        - DOCKER_INFLUXDB_INIT_ORG=smart-buoy
+        - DOCKER_INFLUXDB_INIT_BUCKET=device-data
+        - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=
+      restart: unless-stopped
 
 volumes:
+  influxdb-data:
+  influxdb-config:
   gradle-cache:

@@ -1,122 +1,98 @@
 plugins {
-	id 'java'
-	id 'org.jetbrains.kotlin.jvm' version '2.2.0'
-	id 'com.adarshr.test-logger' version '4.0.0'
-	id 'pmd'
-	id "com.diffplug.spotless" version "7.0.0.BETA1"
+    id 'java'
+    id 'org.jetbrains.kotlin.jvm' version '2.2.0'
+    id 'com.adarshr.test-logger' version '4.0.0'
+    id 'pmd'
+    id "com.diffplug.spotless" version "7.0.0.BETA1"
 }
 
 pmd {
-	consoleOutput = true
-	toolVersion = "7.0.0"
+    consoleOutput = true
+    toolVersion = "7.0.0"
 
-	pmdMain {
-		rulesMinimumPriority = 4
-		ruleSets = [
-				"category/java/design.xml/AvoidDeeplyNestedIfStmts",
-				"category/java/design.xml/CollapsibleIfStatements",
-				"category/java/design.xml/CognitiveComplexity",
-				"category/java/design.xml/CyclomaticComplexity",
-				"category/java/bestpractices.xml/UnusedLocalVariable",
-				"category/java/codestyle.xml/ShortVariable",
-				"category/java/codestyle.xml/UseDiamondOperator",
-				"category/java/errorprone.xml/BrokenNullCheck",
-				"category/java/errorprone.xml/CloseResource",
-				"category/java/errorprone.xml/CompareObjectsWithEquals",
-				"category/java/errorprone.xml/ReturnEmptyCollectionRatherThanNull",
-				"category/java/performance.xml/AvoidArrayLoops"
-		]
-		ruleSetFiles(files("pmdruleset.xml"))
-	}
+    pmdMain {
+        rulesMinimumPriority = 4
+        ruleSets = []  // Empty - we'll use ruleSetFiles instead
+        ruleSetFiles(files("pmdruleset.xml"))
+    }
 
-	pmdTest {
-		rulesMinimumPriority = 1
-		ruleSets = [
-				"category/java/performance.xml/AvoidArrayLoops",
-		]
-	}
+    pmdTest {
+        rulesMinimumPriority = 1
+        ruleSets = []  // Empty
+        ruleSetFiles(files("pmdruleset.xml"))
+    }
 }
 
 spotless {
-	// optional: limit format enforcement to just the files changed by this feature branch
-	//ratchetFrom 'origin/main'
-
-	format 'misc', {
-		// define the files to apply `misc` to
-		target '*.gradle', '.gitattributes', '.gitignore'
-
+    format 'misc', {
+        target '*.gradle', '.gitattributes', '.gitignore'
         targetExclude 'build.gradle', 'settings.gradle'
-
-        // define the steps to apply to those files
-		trimTrailingWhitespace()
-		indentWithTabs() // or spaces. Takes an integer argument if you don't like 4
-		endWithNewline()
-	}
-	java {
-		googleJavaFormat()
-	}
+        trimTrailingWhitespace()
+        indentWithTabs()
+        endWithNewline()
+    }
+    java {
+        googleJavaFormat()
+    }
 }
 
 group = 'edu.bu'
 version = '1.0-SNAPSHOT'
 
 repositories {
-	mavenCentral()
+    mavenCentral()
 }
 
 dependencies {
-	testImplementation platform('org.junit:junit-bom:5.11.3')
-	testImplementation 'org.junit.jupiter:junit-jupiter'
-	testImplementation 'org.mockito:mockito-core:5.12.0'
-	testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-	implementation 'com.google.guava:guava:33.2.1-jre'
-	pmd 'net.sourceforge.pmd:pmd-ant:7.0.0'
-	pmd 'net.sourceforge.pmd:pmd-java:7.0.0'
-	implementation 'org.java-websocket:Java-WebSocket:1.5.6'
-	implementation 'com.googlecode.json-simple:json-simple:1.1.1'
-	implementation 'org.tinylog:tinylog-api:2.7.0'
-	implementation 'org.tinylog:tinylog-impl:2.7.0'
-	implementation platform('software.amazon.awssdk:bom:2.20.0')
-	implementation 'software.amazon.awssdk:sqs'
-	implementation 'com.influxdb:influxdb-client-java:6.10.0'
+    testImplementation platform('org.junit:junit-bom:5.11.3')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.mockito:mockito-core:5.12.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    implementation 'com.google.guava:guava:33.2.1-jre'
+    pmd 'net.sourceforge.pmd:pmd-ant:7.0.0'
+    pmd 'net.sourceforge.pmd:pmd-java:7.0.0'
+    implementation 'org.java-websocket:Java-WebSocket:1.5.6'
+    implementation 'com.googlecode.json-simple:json-simple:1.1.1'
+    implementation 'org.tinylog:tinylog-api:2.7.0'
+    implementation 'org.tinylog:tinylog-impl:2.7.0'
+    implementation platform('software.amazon.awssdk:bom:2.20.0')
+    implementation 'software.amazon.awssdk:sqs'
+    implementation 'com.influxdb:influxdb-client-java:6.10.0'
 }
 
 test {
-	useJUnitPlatform {
-		excludeTags "IntegrationTest"
-		excludeTags "DBTest"
-		excludeTags "Probe"
-	}
+    useJUnitPlatform {
+        excludeTags "IntegrationTest"
+        excludeTags "DBTest"
+        excludeTags "Probe"
+    }
 
-	// Always run tests, even when nothing changed.
-	dependsOn 'cleanTest'
+    dependsOn 'cleanTest'
 
-	// Show test results.
-	testLogging {
-		events "passed", "skipped", "failed"
-	}
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
 }
 
 task integrationTest(type: Test) {
-	useJUnitPlatform {
-		includeTags 'IntegrationTest'
-	}
-	testClassesDirs = sourceSets.test.output.classesDirs
-	classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'IntegrationTest'
+    }
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
 
-	testLogging {
-		events "passed", "skipped", "failed"
-	}
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
 }
 
-
 tasks.register('runServer', JavaExec) {
-	mainClass = 'edu.bu.SmartBuoyServer'
-	classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'edu.bu.SmartBuoyServer'
+    classpath = sourceSets.main.runtimeClasspath
 }
 
 tasks.register('mockData', JavaExec) {
-	classpath = sourceSets.main.runtimeClasspath
-	mainClass = 'edu.bu.mock.MockDataGenerator'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'edu.bu.mock.MockDataGenerator'
 }
