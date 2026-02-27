@@ -93,10 +93,9 @@ public class DeploymentHandler implements HttpHandler {
   private Optional<double[]> retrieveBuoyCoordinates(HttpExchange exchange, int buoyId)
       throws IOException {
     try {
-      BuoyResponse latReading = dataStore.getLatest(buoyId, "latitude").orElse(null);
-      BuoyResponse lonReading = dataStore.getLatest(buoyId, "longitude").orElse(null);
+      Optional<BuoyResponse> latestOpt = dataStore.getLatest(buoyId);
 
-      if (latReading == null || lonReading == null) {
+      if (!latestOpt.isPresent()) {
         sendErrorResponse(
             exchange,
             "Device has not reported GPS data yet. Please place buoy in water and wait for signal.",
@@ -104,8 +103,9 @@ public class DeploymentHandler implements HttpHandler {
         return Optional.empty();
       }
 
-      return Optional.of(new double[] {latReading.measurementVal, lonReading.measurementVal});
+      BuoyResponse latest = latestOpt.get();
 
+      return Optional.of(new double[] {latest.getLatitude(), latest.getLongitude()});
     } catch (UnknownBuoyException e) {
       sendErrorResponse(
           exchange,

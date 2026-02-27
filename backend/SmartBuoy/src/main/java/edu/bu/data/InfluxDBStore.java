@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /** Persistent data store used to hold buoy readings with InfluxDB */
@@ -21,6 +22,7 @@ public class InfluxDBStore implements DataStore {
   private final InfluxDBClient client;
   private final String bucket;
   private final String org;
+  private final Map<Integer, Deployment> deployments = new ConcurrentHashMap<>();
 
   /** Constructor with connection parameters */
   public InfluxDBStore(String url, String token, String org, String bucket) {
@@ -31,11 +33,7 @@ public class InfluxDBStore implements DataStore {
 
   /** Default constructor using values from docker-compose */
   public InfluxDBStore() {
-    this(
-        "http://influxdb:8086",
-        "api-key-ask-daigen",
-        "smart-buoy",
-        "device-data");
+    this("http://influxdb:8086", "api-key-ask-daigen", "smart-buoy", "device-data");
   }
 
   @Override
@@ -83,6 +81,16 @@ public class InfluxDBStore implements DataStore {
     }
 
     return Optional.of(createBuoyResponse(buoyId, timestamp, values));
+  }
+
+  @Override
+  public void saveDeployment(Deployment deployment) {
+    deployments.put(deployment.buoyId, deployment);
+  }
+
+  @Override
+  public Optional<Deployment> getDeployment(int buoyId) {
+    return Optional.ofNullable(deployments.get(buoyId));
   }
 
   /** Create InfluxDB line protocol string from BuoyResponse */

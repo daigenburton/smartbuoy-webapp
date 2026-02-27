@@ -14,7 +14,7 @@ public interface DataStore {
   /** Get the entire history of updates that we have seen for buoy. */
   List<BuoyResponse> getHistory(int buoy) throws UnknownBuoyException;
 
-  Optional<BuoyResponse> getLatest(int buoyId, String measurementType) throws UnknownBuoyException;
+  Optional<BuoyResponse> getLatest(int buoyId) throws UnknownBuoyException;
 
   void saveDeployment(Deployment deployment);
 

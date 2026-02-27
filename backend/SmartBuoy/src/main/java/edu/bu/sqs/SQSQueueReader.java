@@ -160,7 +160,8 @@ public class SQSQueueReader {
       BuoyResponse response = parseBuoyResponse(json);
       dataStore.update(List.of(response));
 
-      checkGeofence(buoyId, measurementType);
+      int buoyId = ((Long) json.get("buoyId")).intValue();
+      checkGeofence(buoyId);
 
       System.out.println(
           "Data for buoy "
@@ -175,17 +176,12 @@ public class SQSQueueReader {
   }
 
   /** Checks if buoy is out of user-defined bounds */
-  private void checkGeofence(int buoyId, String measurementType) {
-    // Only check geofence for location updates
-    if (!measurementType.equals("latitude") && !measurementType.equals("longitude")) {
-      return;
-    }
+  private void checkGeofence(int buoyId) {
 
     try {
-      Optional<BuoyResponse> latOpt = dataStore.getLatest(buoyId, "latitude");
-      Optional<BuoyResponse> lonOpt = dataStore.getLatest(buoyId, "longitude");
+      Optional<BuoyResponse> latestOpt = dataStore.getLatest(buoyId);
 
-      if (!latOpt.isPresent() || !lonOpt.isPresent()) {
+      if (!latestOpt.isPresent()) {
         return;
       }
 
@@ -194,8 +190,10 @@ public class SQSQueueReader {
         return;
       }
 
-      double lat = latOpt.get().measurementVal;
-      double lon = lonOpt.get().measurementVal;
+      BuoyResponse latest = latestOpt.get();
+      double lat = latest.getLatitude();
+      double lon = latest.getLongitude();
+
       Deployment deployment = deploymentOpt.get();
 
       boolean outside = GeofenceService.isOutsideFence(deployment, lat, lon);
