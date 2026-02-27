@@ -8,6 +8,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,8 +25,7 @@ public class ServerIntegrationTest {
   @BeforeEach
   public void setUp() throws Exception {
     store = new InMemoryStore();
-    store.update(
-        Arrays.asList(new BuoyResponse("temperature", 22.5, 1, System.currentTimeMillis())));
+    store.update(Arrays.asList(new BuoyResponse(1, Instant.now(), 22.5, 101325.0, 42.36, -71.05)));
 
     server = new BasicWebServer(store);
     new Thread(
@@ -41,7 +41,7 @@ public class ServerIntegrationTest {
     Thread.sleep(500);
   }
 
-  /* Verify endpoint retuns a 200 OK response with expected buoy data */
+  /* Verify endpoint returns a 200 OK response with expected buoy data */
   @Test
   @Timeout(value = 100, unit = TimeUnit.MILLISECONDS)
   public void testHistoryEndpointReturnsData() throws Exception {
@@ -61,7 +61,8 @@ public class ServerIntegrationTest {
 
     String json = response.toString();
     assertTrue(json.contains("\"buoyId\":1"));
-    assertTrue(json.contains("\"measurementType\":\"temperature\""));
+    assertTrue(json.contains("\"temperature\":22.5"));
+    assertTrue(json.contains("\"pressure\":101325.0"));
   }
 
   /* Verify API handles requests for a nonexistent buoy*/
@@ -92,8 +93,8 @@ public class ServerIntegrationTest {
   public void testHistoryEndpointMultipleReadings() throws Exception {
     store.update(
         Arrays.asList(
-            new BuoyResponse("temperature", 22.5, 1, System.currentTimeMillis()),
-            new BuoyResponse("salinity", 35.0, 1, System.currentTimeMillis())));
+            new BuoyResponse(1, Instant.now(), 22.5, 101325.0, 42.36, -71.05),
+            new BuoyResponse(1, Instant.now().plusSeconds(60), 23.0, 101320.0, 42.37, -71.06)));
 
     URL url = new URL("http://localhost:8000/history/1");
     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -110,8 +111,10 @@ public class ServerIntegrationTest {
     reader.close();
 
     String json = response.toString();
-    assertTrue(json.contains("\"measurementType\":\"temperature\""));
-    assertTrue(json.contains("\"measurementType\":\"salinity\""));
+    assertTrue(json.contains("\"temperature\":22.5"));
+    assertTrue(json.contains("\"temperature\":23.0"));
+    assertTrue(json.contains("\"pressure\":101325.0"));
+    assertTrue(json.contains("\"pressure\":101320.0"));
   }
 
   /* Verify server can handle being hammered with many requests */
@@ -148,8 +151,6 @@ public class ServerIntegrationTest {
     }
   }
 
-  /// new tests-
-
   @Test
   @Timeout(value = 200, unit = TimeUnit.MILLISECONDS)
   public void testLatestTemperatureEndpoint() throws Exception {
@@ -163,17 +164,39 @@ public class ServerIntegrationTest {
     String body = reader.lines().reduce("", String::concat);
 
     assertTrue(body.contains("\"measurementType\":\"temperature\""));
-    assertTrue(body.contains("\"measurementVal\":"));
+    assertTrue(body.contains("\"measurementVal\":22.5"));
   }
 
   @Test
   @Timeout(value = 200, unit = TimeUnit.MILLISECONDS)
-  public void testLatestEndpointMissingDataReturns404() throws Exception {
+  public void testLatestPressureEndpoint() throws Exception {
     URL url = new URL("http://localhost:8000/pressure/1");
     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
     connection.setRequestMethod("GET");
 
-    assertEquals(404, connection.getResponseCode());
+    assertEquals(200, connection.getResponseCode());
+
+    BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+    String body = reader.lines().reduce("", String::concat);
+
+    assertTrue(body.contains("\"measurementType\":\"pressure\""));
+    assertTrue(body.contains("\"measurementVal\":101325.0"));
+  }
+
+  @Test
+  @Timeout(value = 200, unit = TimeUnit.MILLISECONDS)
+  public void testLatestLocationEndpoint() throws Exception {
+    URL url = new URL("http://localhost:8000/location/1");
+    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+    connection.setRequestMethod("GET");
+
+    assertEquals(200, connection.getResponseCode());
+
+    BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+    String body = reader.lines().reduce("", String::concat);
+
+    assertTrue(body.contains("\"latitude\":42.36"));
+    assertTrue(body.contains("\"longitude\":-71.05"));
   }
 
   @Test

@@ -6,6 +6,7 @@ import edu.bu.data.DataStore;
 import edu.bu.data.Deployment;
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.json.simple.JSONObject;
@@ -156,23 +157,16 @@ public class SQSQueueReader {
       JSONParser jsonParser = new JSONParser();
       JSONObject json = (JSONObject) jsonParser.parse(messageBody);
 
-      String measurementType = (String) json.get("measurementType");
-      double measurementVal = (double) json.get("measurementVal");
-      int buoyId = ((Long) json.get("buoyId")).intValue();
-      Object timeObj = json.get("msSinceEpoch");
-      long msSinceEpoch =
-          (timeObj instanceof String)
-              ? java.time.Instant.parse((String) timeObj).toEpochMilli()
-              : (long) timeObj;
-
-      BuoyResponse response =
-          new BuoyResponse(measurementType, measurementVal, buoyId, msSinceEpoch);
-
+      BuoyResponse response = parseBuoyResponse(json);
       dataStore.update(List.of(response));
 
       checkGeofence(buoyId, measurementType);
 
-      System.out.println("Data for buoy " + buoyId + ": " + dataStore.getHistory(buoyId));
+      System.out.println(
+          "Data for buoy "
+              + response.getBuoyId()
+              + ": "
+              + dataStore.getHistory(response.getBuoyId()));
 
     } catch (Exception e) {
       System.err.println("Error processing message: " + e.getMessage());
@@ -213,6 +207,35 @@ public class SQSQueueReader {
     } catch (Exception e) {
       System.err.println("Error in geofence check (non-fatal): " + e.getMessage());
     }
+  }
+
+  /**
+   * Parses a JSON object into a BuoyResponse.
+   *
+   * @param json The JSON object containing buoy data
+   * @return BuoyResponse object with parsed sensor data
+   */
+  private BuoyResponse parseBuoyResponse(JSONObject json) {
+    int buoyId = ((Long) json.get("buoyId")).intValue();
+
+    // Parse timestamp
+    Instant timestamp;
+    Object timeObj = json.get("timestamp");
+    if (timeObj instanceof String) {
+      timestamp = Instant.parse((String) timeObj);
+    } else if (timeObj instanceof Long) {
+      timestamp = Instant.ofEpochMilli((Long) timeObj);
+    } else {
+      timestamp = Instant.now();
+    }
+
+    // Extract all sensor readings
+    double temperature = ((Number) json.get("temperature")).doubleValue();
+    double pressure = ((Number) json.get("pressure")).doubleValue();
+    double latitude = ((Number) json.get("latitude")).doubleValue();
+    double longitude = ((Number) json.get("longitude")).doubleValue();
+
+    return new BuoyResponse(buoyId, timestamp, temperature, pressure, latitude, longitude);
   }
 
   /** Closes the SQS client when shutting down */
