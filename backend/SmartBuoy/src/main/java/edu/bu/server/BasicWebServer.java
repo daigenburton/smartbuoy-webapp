@@ -27,10 +27,15 @@ public class BasicWebServer {
     // Create handler for history requests for individual buoyIds
     server.createContext("/history", new HistoryHandler(store));
 
+    // Create handler for current requests for individual buoyIds
+    // server.createContext("/current", new CurrentMeasurementHandler(store));
+
     // Create handlers for specfic data requests for individual buoyIds
     server.createContext("/temperature", new LatestMeasurementHandler(store, "temperature"));
     server.createContext("/pressure", new LatestMeasurementHandler(store, "pressure"));
     server.createContext("/location", new LatestMeasurementHandler(store, "location"));
+
+    // Create handler for buoy deployment
     server.createContext("/deploy", new DeploymentHandler(store));
 
     // server.createContext("/update", new UpdateHandler(store));
