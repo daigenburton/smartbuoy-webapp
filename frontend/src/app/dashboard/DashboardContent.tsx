@@ -170,7 +170,7 @@ export default function DashboardContent() {
           <h2 className="text-lg font-semibold mb-2">Temperature</h2>
           <div className="flex items-end justify-between">
             <span className="text-4xl font-bold text-emerald-500">
-              {data.temperatureF.toFixed(1)}°F
+              {data.temperatureF.toFixed(1)}°C
             </span>
             <span className="text-xs text-gray-400">Source: {selectedBuoyName}</span>
           </div>
