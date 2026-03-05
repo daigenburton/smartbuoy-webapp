@@ -88,6 +88,12 @@ body {
   font-style: italic;
 }
 
+/* Brand wordmark (cute cursive-ish) */
+.brand-script {
+  font-family: ui-rounded, "Segoe UI", "Comic Sans MS", cursive;
+  letter-spacing: -0.02em;
+}
+
 /* Card used for your text blocks & contact list */
 .card {
   background: var(--card-bg);
