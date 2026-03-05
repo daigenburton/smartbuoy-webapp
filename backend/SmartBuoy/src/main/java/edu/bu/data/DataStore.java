@@ -15,4 +15,8 @@ public interface DataStore {
   List<BuoyResponse> getHistory(int buoy) throws UnknownBuoyException;
 
   Optional<BuoyResponse> getLatest(int buoyId) throws UnknownBuoyException;
+
+  void saveDeployment(Deployment deployment);
+
+  Optional<Deployment> getDeployment(int buoyId);
 }

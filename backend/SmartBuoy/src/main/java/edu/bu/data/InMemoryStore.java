@@ -60,4 +60,16 @@ public class InMemoryStore implements DataStore {
 
     return storedData.get(buoyId).stream().max(Comparator.comparing(BuoyResponse::getTimestamp));
   }
+
+  private final Map<Integer, Deployment> deployments = new ConcurrentHashMap<>();
+
+  @Override
+  public void saveDeployment(Deployment deployment) {
+    deployments.put(deployment.buoyId, deployment);
+  }
+
+  @Override
+  public Optional<Deployment> getDeployment(int buoyId) {
+    return Optional.ofNullable(deployments.get(buoyId));
+  }
 }

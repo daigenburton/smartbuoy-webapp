@@ -168,4 +168,19 @@ public class InMemoryStoreTest {
     assertEquals(101315.0, history.get(2).getPressure());
     assertEquals(42.38, history.get(2).getLatitude());
   }
+
+  @Test
+  public void testSaveAndGetDeployment() {
+    Deployment d = new Deployment(1, 42.0, -70.0, 30.0, System.currentTimeMillis());
+
+    store.saveDeployment(d);
+
+    Optional<Deployment> fetchedOpt = store.getDeployment(1);
+    assertTrue(fetchedOpt.isPresent());
+
+    Deployment fetched = fetchedOpt.get();
+    assertEquals(42.0, fetched.lat);
+    assertEquals(-70.0, fetched.lon);
+    assertEquals(30.0, fetched.allowedRadiusMeters);
+  }
 }
