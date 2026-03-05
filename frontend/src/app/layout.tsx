@@ -96,6 +96,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import "leaflet/dist/leaflet.css"
 import Providers from "./providers"
+import NavAccount from "./components/NavAccount"
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] })
@@ -142,9 +143,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </nav>
 
               <div className="flex items-center gap-3">
-                <Link href="/login" className="btn btn-primary px-5 py-2 text-sm">
-                  Log in
-                </Link>
+                <NavAccount />
               </div>
             </div>
           </header>

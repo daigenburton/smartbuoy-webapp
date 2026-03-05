@@ -62,15 +62,15 @@ export async function GET(
     const locationJson = await locationRes.json()
 
     // const combined: CombinedBuoyResponse = {
-    //   temperatureF: tempJson.value,
-    //   pressureHpa: pressureJson.value,
+    //   temperatureF: tempJson.measurementVal,
+    //   pressureHpa: pressureJson.measurementVal,
     //   latitude: locationJson.latitude,
     //   longitude: locationJson.longitude,
     //   timestamp: locationJson.timestamp,
     // }
     const combined: CombinedBuoyResponse = {
-      temperatureF: tempJson.measurementVal,
-      pressureHpa: pressureJson.measurementVal,
+      temperatureF: tempJson.temperature,
+      pressureHpa: pressureJson.pressure,
       latitude: locationJson.latitude,
       longitude: locationJson.longitude,
       timestamp: locationJson.timestamp,
