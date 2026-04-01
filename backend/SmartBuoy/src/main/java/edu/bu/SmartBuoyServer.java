@@ -1,5 +1,6 @@
 package edu.bu;
 
+import edu.bu.analytics.notifications.NotificationService;
 import edu.bu.data.DataStore;
 import edu.bu.data.InMemoryStore;
 import edu.bu.server.BasicWebServer;
@@ -26,12 +27,15 @@ public class SmartBuoyServer {
     // mock data-
     // DataStore store = edu.bu.mock.MockDataGenerator.generate();
 
+    // creeate notif service instance
+    NotificationService notificationService = new NotificationService();
+
     // start web server
-    BasicWebServer webServer = new BasicWebServer(store);
+    BasicWebServer webServer = new BasicWebServer(store, notificationService);
     webServer.start();
 
     // start SQSQueueReader service
-    SQSQueueReader queueReader = new SQSQueueReader(store);
+    SQSQueueReader queueReader = new SQSQueueReader(store, notificationService);
     queueReader.start();
   }
 }

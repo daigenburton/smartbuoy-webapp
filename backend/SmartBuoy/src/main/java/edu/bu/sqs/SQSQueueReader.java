@@ -1,6 +1,8 @@
 package edu.bu.sqs;
 
 import edu.bu.analytics.geofence.GeofenceService;
+import edu.bu.analytics.notifications.Alert;
+import edu.bu.analytics.notifications.NotificationService;
 import edu.bu.data.BuoyResponse;
 import edu.bu.data.DataStore;
 import edu.bu.data.Deployment;
@@ -35,13 +37,16 @@ public class SQSQueueReader {
   final DataStore dataStore;
   private long currentBackoffMs;
 
+  private final NotificationService notificationService;
+
   /**
    * Creates a new QueueReader that will update the provided DataStore
    *
    * @param dataStore The DataStore to update with queue messages
    */
-  public SQSQueueReader(DataStore dataStore) {
+  public SQSQueueReader(DataStore dataStore, NotificationService notificationService) {
     this.dataStore = dataStore;
+    this.notificationService = notificationService;
     this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     this.currentBackoffMs = INITIAL_BACKOFF_MS;
   }
@@ -195,11 +200,17 @@ public class SQSQueueReader {
       double lon = latest.getLongitude();
 
       Deployment deployment = deploymentOpt.get();
+      String userId = deployment.userId;
 
       boolean outside = GeofenceService.isOutsideFence(deployment, lat, lon);
 
+      // if (outside) {
+      //   System.out.println("ALERT: Buoy " + buoyId + " left geofence!");
+      // }
       if (outside) {
-        System.out.println("ALERT: Buoy " + buoyId + " left geofence!");
+        Alert alert = new Alert(buoyId, Alert.AlertType.DRIFT, Instant.now(), lat, lon, "HIGH");
+
+        notificationService.handleAlert(alert, userId);
       }
 
     } catch (Exception e) {

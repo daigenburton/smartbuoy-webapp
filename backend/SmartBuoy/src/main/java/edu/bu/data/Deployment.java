@@ -7,14 +7,21 @@ package edu.bu.data;
  */
 public class Deployment {
   public final int buoyId;
+  public final String userId;
   public final double lat;
   public final double lon;
   public final double allowedRadiusMeters;
   public final long deployedAt;
 
   public Deployment(
-      int buoyId, double lat, double lon, double allowedRadiusMeters, long deployedAt) {
+      int buoyId,
+      String userId,
+      double lat,
+      double lon,
+      double allowedRadiusMeters,
+      long deployedAt) {
     this.buoyId = buoyId;
+    this.userId = userId;
     this.lat = lat;
     this.lon = lon;
     this.allowedRadiusMeters = allowedRadiusMeters;

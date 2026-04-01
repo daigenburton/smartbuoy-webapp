@@ -171,7 +171,7 @@ public class InMemoryStoreTest {
 
   @Test
   public void testSaveAndGetDeployment() {
-    Deployment d = new Deployment(1, 42.0, -70.0, 30.0, System.currentTimeMillis());
+    Deployment d = new Deployment(1, "testuser", 42.0, -70.0, 30.0, System.currentTimeMillis());
 
     store.saveDeployment(d);
 

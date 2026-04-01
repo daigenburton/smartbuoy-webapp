@@ -12,7 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-@Tag("Test")
+@Tag("DBTest")
 public class InfluxDBTest {
 
   private InfluxDBStore store;

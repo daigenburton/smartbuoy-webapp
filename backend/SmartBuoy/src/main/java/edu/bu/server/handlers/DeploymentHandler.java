@@ -74,8 +74,15 @@ public class DeploymentHandler implements HttpHandler {
     double lon = coordinates[1];
     double allowedRadius = ((Number) request.get("allowedRadiusMeters")).doubleValue();
 
+    // String userId = "email"; //placeholder for testing
+    String userId = (String) request.get("userId");
+    if (userId == null || userId.isEmpty()) {
+      sendErrorResponse(exchange, "Missing userId", 400);
+      return;
+    }
+
     Deployment deployment =
-        new Deployment(buoyId, lat, lon, allowedRadius, System.currentTimeMillis());
+        new Deployment(buoyId, userId, lat, lon, allowedRadius, System.currentTimeMillis());
     dataStore.saveDeployment(deployment);
 
     sendSuccessResponse(exchange, buoyId, lat, lon, allowedRadius);

@@ -2,6 +2,7 @@ package edu.bu.server;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import edu.bu.analytics.notifications.NotificationService;
 import edu.bu.data.BuoyResponse;
 import edu.bu.data.InMemoryStore;
 import java.io.BufferedReader;
@@ -13,14 +14,14 @@ import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
-@Tag("IntegrationTest")
+// @Tag("IntegrationTest")
 public class ServerIntegrationTest {
 
   private InMemoryStore store;
+  NotificationService notifService = new NotificationService();
   private BasicWebServer server;
 
   @BeforeEach
@@ -28,7 +29,7 @@ public class ServerIntegrationTest {
     store = new InMemoryStore();
     store.update(Arrays.asList(new BuoyResponse(1, Instant.now(), 22.5, 101325.0, 42.36, -71.05)));
 
-    server = new BasicWebServer(store);
+    server = new BasicWebServer(store, notifService);
     new Thread(
             () -> {
               try {

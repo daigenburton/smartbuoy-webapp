@@ -1,7 +1,9 @@
 package edu.bu.server;
 
 import com.sun.net.httpserver.HttpServer;
+import edu.bu.analytics.notifications.NotificationService;
 import edu.bu.data.DataStore;
+import edu.bu.server.handlers.AlertsHandler;
 import edu.bu.server.handlers.CurrentHandler;
 import edu.bu.server.handlers.DeploymentHandler;
 import edu.bu.server.handlers.HistoryHandler;
@@ -17,9 +19,11 @@ import org.tinylog.Logger;
 public class BasicWebServer {
   final DataStore store;
   private HttpServer server;
+  private final NotificationService notificationService;
 
-  public BasicWebServer(DataStore store) {
+  public BasicWebServer(DataStore store, NotificationService notificationService) {
     this.store = store;
+    this.notificationService = notificationService;
   }
 
   public void start() throws IOException {
@@ -36,6 +40,7 @@ public class BasicWebServer {
     server.createContext("/temperature", new LatestMeasurementHandler(store, "temperature"));
     server.createContext("/pressure", new LatestMeasurementHandler(store, "pressure"));
     server.createContext("/location", new LatestMeasurementHandler(store, "location"));
+    server.createContext("/alerts", new AlertsHandler(notificationService));
 
     // Create handler for buoy deployment
     server.createContext("/deploy", new DeploymentHandler(store));
