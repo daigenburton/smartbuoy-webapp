@@ -4,6 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { signOut, useSession } from "next-auth/react"
 import { usePathname } from "next/navigation"
+import AlertBell from "./AlertBell"
 
 export default function NavAccount() {
   const { data: session, status } = useSession()
@@ -63,6 +64,9 @@ export default function NavAccount() {
       >
         Log out
       </button>
+
+      <AlertBell />
+
     </div>
   )
 }

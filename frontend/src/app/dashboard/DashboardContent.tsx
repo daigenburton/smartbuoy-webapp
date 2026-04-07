@@ -223,7 +223,7 @@ export default function DashboardContent() {
               Current position
             </div>
           </div>
-
+        
           <BuoyMap
             firstLocation={firstLocation}
             currentLocation={{

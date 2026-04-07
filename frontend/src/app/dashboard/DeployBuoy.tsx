@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 
 type Props = {
   buoyId: string;
 };
 
 export default function DeployBuoy({ buoyId }: Props) {
+  const { data: session } = useSession()
   const [isOpen, setIsOpen] = useState(false)
   const [radius, setRadius] = useState(30);
   const [status, setStatus] = useState<string | null>(null);
@@ -17,6 +19,12 @@ export default function DeployBuoy({ buoyId }: Props) {
     setStatus(null);
     const numericBuoyId = Number(buoyId.split("-")[1])
 
+    if (!session?.user?.email) {        
+      setStatus("You must be logged in to deploy a buoy.");
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch("http://localhost:8000/deploy", {
         method: "POST",
@@ -24,6 +32,7 @@ export default function DeployBuoy({ buoyId }: Props) {
         body: JSON.stringify({
           buoyId: numericBuoyId,
           allowedRadiusMeters: radius,
+          userId: session.user.email,
         }),
       });
 
