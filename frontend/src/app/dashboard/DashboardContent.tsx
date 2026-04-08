@@ -1,7 +1,10 @@
 "use client"
 
-import { useState, useEffect, ChangeEvent } from "react"
+import { useState, useEffect, useRef, ChangeEvent } from "react"
 import DeployBuoy from "./DeployBuoy"
+import ApiTokens from "./ApiTokens"
+import { usePreferences } from "@/lib/usePreferences"
+import { formatTemperature, formatPressure, formatCoordinates, formatTimestamp } from "@/lib/units"
 //import BuoyMap from "./BuoyMap"
 import dynamic from "next/dynamic"
 
@@ -24,6 +27,7 @@ type BuoyData = {
   latitude: number
   longitude: number
   lastUpdated: string
+  timestampRaw: number
 }
 
 type Location = {
@@ -31,25 +35,14 @@ type Location = {
   longitude: number
 }
 
-function createMockData(buoyId: BuoyId): BuoyData {
-  const now = new Date().toLocaleTimeString()
-  const baseTemp =
-    buoyId === "buoy-1" ? 52 : buoyId === "buoy-2" ? 55 : 49
-  const basePressure =
-    buoyId === "buoy-1" ? 1015 : buoyId === "buoy-2" ? 1012 : 1008
-
-  return {
-    temperatureF: baseTemp + Math.random() * 2,
-    pressureHpa: basePressure + Math.random() * 3,
-    latitude: 42.35 + Math.random() * 0.02,
-    longitude: -70.99 + Math.random() * 0.02,
-    lastUpdated: now,
-  }
-}
 
 async function fetchBuoyDataFromApi(buoyId: BuoyId): Promise<BuoyData> {
   const res = await fetch(`/api/buoys/${buoyId}`, { cache: "no-store" })
-  if (!res.ok) throw new Error(`API responded with ${res.status}`)
+  if (!res.ok) {
+    if (res.status === 404) throw new Error("No data received yet for this buoy.")
+    if (res.status === 401) throw new Error("Not authorized.")
+    throw new Error("Backend unreachable.")
+  }
 
   const json = await res.json()
 
@@ -59,18 +52,32 @@ async function fetchBuoyDataFromApi(buoyId: BuoyId): Promise<BuoyData> {
     latitude: json.latitude,
     longitude: json.longitude,
     lastUpdated: new Date(json.timestamp).toLocaleTimeString(),
+    timestampRaw: json.timestamp,
   }
 }
 
 export default function DashboardContent() {
+  const { preferences } = usePreferences()
   const [selectedBuoy, setSelectedBuoy] = useState<BuoyId>("buoy-1")
-  const [data, setData] = useState<BuoyData>(() => createMockData("buoy-1"))
+  const [data, setData] = useState<BuoyData | null>(null)
   const [firstLocation, setFirstLocation] = useState<Location | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [backendConnected, setBackendConnected] = useState<boolean | null>(null)
+  const healthIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const selectedBuoyName =
     BUOYS.find(b => b.id === selectedBuoy)?.name ?? "Selected Buoy"
+
+  async function checkHealth() {
+    try {
+      const res = await fetch("/api/health/backend", { cache: "no-store" })
+      const json = await res.json()
+      setBackendConnected(json.status === "up")
+    } catch {
+      setBackendConnected(false)
+    }
+  }
 
   const loadBuoyData = async (buoyId: BuoyId, resetFirstLocation: boolean) => {
     setIsLoading(true)
@@ -87,25 +94,19 @@ export default function DashboardContent() {
         })
       }
     } catch (err) {
-      console.error("API error, falling back to mock:", err)
-      setError("Using mock data (backend not reachable).")
-
-      const mock = createMockData(buoyId)
-      setData(mock)
-
-      if (resetFirstLocation || !firstLocation) {
-        setFirstLocation({
-          latitude: mock.latitude,
-          longitude: mock.longitude,
-        })
-      }
+      setError(err instanceof Error ? err.message : "Backend unreachable.")
     } finally {
       setIsLoading(false)
     }
   }
 
   useEffect(() => {
+    void checkHealth()
     void loadBuoyData("buoy-1", true)
+    healthIntervalRef.current = setInterval(checkHealth, 15000)
+    return () => {
+      if (healthIntervalRef.current) clearInterval(healthIntervalRef.current)
+    }
   }, [])
 
   const handleChangeBuoy = (event: ChangeEvent<HTMLSelectElement>) => {
@@ -124,16 +125,40 @@ export default function DashboardContent() {
       {/* Header */}
       <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="h1 mb-1">SmartBuoy Dashboard</h1>
-          <p className="text-sm text-gray-500">
-            Monitoring{" "}
-            <span className="font-semibold">{selectedBuoyName}</span>
+          <p className="text-sm font-bold text-slate-900 dark:text-white drop-shadow-sm">
+            Monitoring <span>{selectedBuoyName}</span>
           </p>
-          <p className="text-xs text-gray-400">Last updated: {data.lastUpdated}</p>
-          {error && <p className="text-xs text-amber-600 mt-1">{error}</p>}
+          <p className="text-xs text-gray-400">
+            Last updated:{" "}
+            {data
+              ? formatTimestamp(
+                  new Date(data.timestampRaw).toISOString(),
+                  preferences?.dateFormat ?? "iso",
+                  preferences?.timezone ?? "UTC"
+                )
+              : "—"}
+          </p>
+          <div className="mt-1 flex items-center gap-1.5">
+            <span className={`h-2 w-2 rounded-full ${
+              backendConnected === null
+                ? "bg-slate-300 animate-pulse"
+                : backendConnected
+                  ? "bg-green-500"
+                  : "bg-red-500"
+            }`} />
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              {backendConnected === null
+                ? "Checking connection…"
+                : backendConnected
+                  ? error
+                    ? "Connected · No data"
+                    : "Connected"
+                  : "Backend unreachable"}
+            </span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           <label className="text-sm text-gray-700 flex flex-col">
             <span className="mb-1 font-medium">Select Buoy</span>
             <select
@@ -166,25 +191,32 @@ export default function DashboardContent() {
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
         {/* Temperature */}
-        <div className="card flex flex-col justify-between">
+        <div className="card flex flex-col justify-between" style={{ padding: '1.5rem' }}>
           <h2 className="text-lg font-semibold mb-2">Temperature</h2>
           <div className="flex items-end justify-between">
-            <span className="text-4xl font-bold text-emerald-500">
-              {data.temperatureF.toFixed(1)}°C
+            <span className="text-4xl font-bold" style={{ color: 'var(--color-temp)' }}>
+              {isLoading ? "Loading..." : data ? formatTemperature(data.temperatureF, preferences?.temperatureUnit ?? "celsius") : <span className="text-gray-400">—</span>}
             </span>
             <span className="text-xs text-gray-400">Source: {selectedBuoyName}</span>
           </div>
         </div>
 
         {/* Pressure */}
-        <div className="card flex flex-col justify-between">
+        <div className="card flex flex-col justify-between" style={{ padding: '1.5rem' }}>
           <h2 className="text-lg font-semibold mb-2">Pressure</h2>
           <div className="flex items-end justify-between">
-            <span className="text-4xl font-bold text-sky-500">
-              {data.pressureHpa.toFixed(0)} hPa
+            <span className="text-4xl font-bold" style={{ color: 'var(--color-pressure)' }}>
+              {isLoading ? "Loading..." : data ? formatPressure(data.pressureHpa, preferences?.pressureUnit ?? "hpa") : <span className="text-gray-400">—</span>}
             </span>
             <span className="text-xs text-gray-400">
-              Updated: {data.lastUpdated}
+              Updated:{" "}
+              {data
+                ? formatTimestamp(
+                    new Date(data.timestampRaw).toISOString(),
+                    preferences?.dateFormat ?? "iso",
+                    preferences?.timezone ?? "UTC"
+                  )
+                : "—"}
             </span>
           </div>
         </div>
@@ -194,22 +226,29 @@ export default function DashboardContent() {
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
         {/* Numeric Coordinates */}
-        <div className="card">
+        <div className="card" style={{ padding: '1.5rem' }}>
           <h2 className="text-lg font-semibold mb-2">Location</h2>
           <div className="space-y-2 text-sm">
-            <p>
-              <span className="font-medium">Latitude:</span>{" "}
-              {data.latitude.toFixed(4)}
-            </p>
-            <p>
-              <span className="font-medium">Longitude:</span>{" "}
-              {data.longitude.toFixed(4)}
-            </p>
+            {(() => {
+              const coords = data ? formatCoordinates(data.latitude, data.longitude, preferences?.coordinateFormat ?? "decimal") : null
+              return (
+                <>
+                  <p>
+                    <span className="font-medium">Latitude:</span>{" "}
+                    {isLoading ? "Loading..." : coords ? coords.lat : <span className="text-gray-400">—</span>}
+                  </p>
+                  <p>
+                    <span className="font-medium">Longitude:</span>{" "}
+                    {isLoading ? "Loading..." : coords ? coords.lng : <span className="text-gray-400">—</span>}
+                  </p>
+                </>
+              )
+            })()}
           </div>
         </div>
 
         {/* Map */}
-        <div className="card flex flex-col">
+        <div className="card flex flex-col" style={{ padding: '1.5rem' }}>
           <h2 className="text-lg font-semibold mb-2">Live Map</h2>
 
           {/* Legend */}
@@ -226,13 +265,12 @@ export default function DashboardContent() {
 
           <BuoyMap
             firstLocation={firstLocation}
-            currentLocation={{
-              latitude: data.latitude,
-              longitude: data.longitude,
-            }}
+            currentLocation={data ? { latitude: data.latitude, longitude: data.longitude } : null}
           />
         </div>
       </section>
+
+      <ApiTokens />
     </div>
   )
 }

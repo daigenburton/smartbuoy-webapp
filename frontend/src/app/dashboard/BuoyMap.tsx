@@ -16,7 +16,7 @@ type Location = {
 
 type BuoyMapProps = {
   firstLocation: Location | null
-  currentLocation: Location
+  currentLocation: Location | null
 }
 
 // Relax the TS typing for React-Leaflet components
@@ -29,7 +29,7 @@ export default function BuoyMap({
   firstLocation,
   currentLocation,
 }: BuoyMapProps) {
-  if (!firstLocation) {
+  if (!firstLocation || !currentLocation) {
     return (
       <div className="flex-1 rounded-lg border border-gray-200 bg-slate-50 flex items-center justify-center text-xs text-gray-400">
         Waiting for first location…

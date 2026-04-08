@@ -12,14 +12,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-@Tag("Test")
+@Tag("DBTest")
 public class InfluxDBTest {
 
   private InfluxDBStore store;
 
   @BeforeEach
   public void setUp() {
-    store = new InfluxDBStore();
+    String url = System.getenv().getOrDefault("INFLUXDB_URL", "http://influxdb:8086");
+    String token = System.getenv("DOCKER_INFLUXDB_INIT_ADMIN_TOKEN");
+    String org = System.getenv().getOrDefault("DOCKER_INFLUXDB_INIT_ORG", "smart-buoy");
+    String bucket = System.getenv().getOrDefault("DOCKER_INFLUXDB_INIT_BUCKET", "device-data");
+    store = new InfluxDBStore(url, token, org, bucket);
   }
 
   @AfterEach

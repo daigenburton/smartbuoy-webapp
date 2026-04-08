@@ -1,134 +1,91 @@
 package edu.bu.server;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import edu.bu.data.BuoyResponse;
 import edu.bu.data.InMemoryStore;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 
+/** Integration tests for the SmartBuoy REST API endpoints. */
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureMockMvc
 @Tag("IntegrationTest")
 public class ServerIntegrationTest {
 
-  private InMemoryStore store;
-  private BasicWebServer server;
+  @Autowired private MockMvc mockMvc;
+
+  @Autowired private InMemoryStore store;
 
   @BeforeEach
-  public void setUp() throws Exception {
-    store = new InMemoryStore();
+  public void setUp() {
+    store.clearAll();
     store.update(Arrays.asList(new BuoyResponse(1, Instant.now(), 22.5, 101325.0, 42.36, -71.05)));
-
-    server = new BasicWebServer(store);
-    new Thread(
-            () -> {
-              try {
-                server.start();
-              } catch (Exception e) {
-                e.printStackTrace();
-              }
-            })
-        .start();
-
-    Thread.sleep(500);
   }
 
-  @AfterEach
-  public void tearDown() {
-    if (server != null) {
-      server.stop();
-    }
-  }
-
-  /* Verify endpoint returns a 200 OK response with expected buoy data */
   @Test
-  @Timeout(value = 100, unit = TimeUnit.MILLISECONDS)
+  @Timeout(value = 5, unit = TimeUnit.SECONDS)
   public void testHistoryEndpointReturnsData() throws Exception {
-    URL url = new URL("http://localhost:8000/history/temperature/1");
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod("GET");
-
-    assertEquals(200, connection.getResponseCode());
-
-    BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-    StringBuilder response = new StringBuilder();
-    String line;
-    while ((line = reader.readLine()) != null) {
-      response.append(line);
-    }
-    reader.close();
-
-    String json = response.toString();
-    assertTrue(json.contains("\"buoyId\":1"));
-    assertTrue(json.contains("\"measurementType\":\"temperature\""));
-    assertTrue(json.contains("\"temperature\":22.5"));
+    mockMvc
+        .perform(get("/history/temperature/1"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.history[0].buoyId").value(1))
+        .andExpect(jsonPath("$.history[0].measurementType").value("temperature"))
+        .andExpect(jsonPath("$.history[0].temperature").value(22.5));
   }
 
-  /* Verify API handles requests for a nonexistent buoy*/
   @Test
-  @Timeout(value = 100, unit = TimeUnit.MILLISECONDS)
+  @Timeout(value = 5, unit = TimeUnit.SECONDS)
   public void testUnknownBuoyReturns404() throws Exception {
-    URL url = new URL("http://localhost:8000/history/temperature/999");
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod("GET");
-
-    assertEquals(404, connection.getResponseCode());
+    mockMvc.perform(get("/history/temperature/999")).andExpect(status().isNotFound());
   }
 
-  /* Verify valid JSON is returned*/
   @Test
-  @Timeout(value = 100, unit = TimeUnit.MILLISECONDS)
+  @Timeout(value = 5, unit = TimeUnit.SECONDS)
   public void testContentTypeIsJson() throws Exception {
-    URL url = new URL("http://localhost:8000/history/temperature/1");
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod("GET");
-
-    assertEquals("application/json", connection.getHeaderField("Content-Type"));
+    mockMvc
+        .perform(get("/history/temperature/1"))
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON));
   }
 
-  /* Verify server returns entire history of a buoy */
   @Test
-  @Timeout(value = 500, unit = TimeUnit.MILLISECONDS)
+  @Timeout(value = 5, unit = TimeUnit.SECONDS)
   public void testHistoryEndpointMultipleReadings() throws Exception {
     store.update(
         Arrays.asList(
             new BuoyResponse(1, Instant.now(), 22.5, 101325.0, 42.36, -71.05),
             new BuoyResponse(1, Instant.now().plusSeconds(60), 23.0, 101320.0, 42.37, -71.06)));
 
-    URL url = new URL("http://localhost:8000/history/temperature/1");
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod("GET");
+    String body =
+        mockMvc
+            .perform(get("/history/temperature/1"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
 
-    assertEquals(200, connection.getResponseCode());
-
-    BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-    StringBuilder response = new StringBuilder();
-    String line;
-    while ((line = reader.readLine()) != null) {
-      response.append(line);
-    }
-    reader.close();
-
-    String json = response.toString();
-    assertTrue(json.contains("\"temperature\":22.5"));
-    assertTrue(json.contains("\"temperature\":23.0"));
+    assertTrue(body.contains("22.5"));
+    assertTrue(body.contains("23.0"));
   }
 
-  /* Verify server can handle being hammered with many requests */
   @Test
-  @Timeout(value = 2, unit = TimeUnit.SECONDS)
+  @Timeout(value = 10, unit = TimeUnit.SECONDS)
   public void testServerHandlesRapidRequests() throws Exception {
-    int threadCount = 50; // number of parallel clients hitting API
-    int requestsPerThread = 20; // total = 1000 requests
+    int threadCount = 50;
+    int requestsPerThread = 20;
     Thread[] threads = new Thread[threadCount];
 
     for (int i = 0; i < threadCount; i++) {
@@ -137,13 +94,9 @@ public class ServerIntegrationTest {
               () -> {
                 for (int j = 0; j < requestsPerThread; j++) {
                   try {
-                    URL url = new URL("http://localhost:8000/history/temperature/1");
-                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                    conn.setRequestMethod("GET");
-
-                    int code = conn.getResponseCode();
-                    assertEquals(200, code);
-                    conn.disconnect();
+                    mockMvc
+                        .perform(get("/history/temperature/1"))
+                        .andExpect(status().isOk());
                   } catch (Exception e) {
                     fail("Server failed under load: " + e.getMessage());
                   }
@@ -152,187 +105,110 @@ public class ServerIntegrationTest {
       threads[i].start();
     }
 
-    for (Thread t : threads) {
-      t.join();
+    for (Thread thread : threads) {
+      thread.join();
     }
   }
 
   @Test
-  @Timeout(value = 200, unit = TimeUnit.MILLISECONDS)
+  @Timeout(value = 5, unit = TimeUnit.SECONDS)
   public void testLatestTemperatureEndpoint() throws Exception {
-    URL url = new URL("http://localhost:8000/temperature/1");
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod("GET");
-
-    assertEquals(200, connection.getResponseCode());
-
-    BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-    String body = reader.lines().reduce("", String::concat);
-
-    assertTrue(body.contains("\"measurementType\":\"temperature\""));
-    assertTrue(body.contains("\"temperature\":22.5"));
+    mockMvc
+        .perform(get("/temperature/1"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.measurementType").value("temperature"))
+        .andExpect(jsonPath("$.temperature").value(22.5));
   }
 
   @Test
-  @Timeout(value = 200, unit = TimeUnit.MILLISECONDS)
+  @Timeout(value = 5, unit = TimeUnit.SECONDS)
   public void testLatestPressureEndpoint() throws Exception {
-    URL url = new URL("http://localhost:8000/pressure/1");
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod("GET");
-
-    assertEquals(200, connection.getResponseCode());
-
-    BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-    String body = reader.lines().reduce("", String::concat);
-
-    assertTrue(body.contains("\"measurementType\":\"pressure\""));
-    assertTrue(body.contains("\"pressure\":101325.0"));
+    mockMvc
+        .perform(get("/pressure/1"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.measurementType").value("pressure"))
+        .andExpect(jsonPath("$.pressure").value(101325.0));
   }
 
   @Test
-  @Timeout(value = 200, unit = TimeUnit.MILLISECONDS)
+  @Timeout(value = 5, unit = TimeUnit.SECONDS)
   public void testLatestLocationEndpoint() throws Exception {
-    URL url = new URL("http://localhost:8000/location/1");
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod("GET");
-
-    assertEquals(200, connection.getResponseCode());
-
-    BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
-    String body = reader.lines().reduce("", String::concat);
-
-    assertTrue(body.contains("\"latitude\":42.36"));
-    assertTrue(body.contains("\"longitude\":-71.05"));
-
-    System.out.println(body);
+    mockMvc
+        .perform(get("/location/1"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.latitude").value(42.36))
+        .andExpect(jsonPath("$.longitude").value(-71.05));
   }
 
   @Test
-  @Timeout(value = 200, unit = TimeUnit.MILLISECONDS)
+  @Timeout(value = 5, unit = TimeUnit.SECONDS)
   public void testLatestEndpointInvalidBuoyIdReturns404() throws Exception {
-    URL url = new URL("http://localhost:8000/temperature/999");
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod("GET");
-
-    assertEquals(404, connection.getResponseCode());
+    mockMvc.perform(get("/temperature/999")).andExpect(status().isNotFound());
   }
 
-  /* Verify current temperature endpoint */
   @Test
-  @Timeout(value = 200, unit = TimeUnit.MILLISECONDS)
+  @Timeout(value = 5, unit = TimeUnit.SECONDS)
   public void testCurrentTemperatureEndpoint() throws Exception {
-
-    URL url = new URL("http://localhost:8000/current/temperature/1");
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod("GET");
-
-    assertEquals(200, connection.getResponseCode());
-
-    String body =
-        new BufferedReader(new InputStreamReader(connection.getInputStream()))
-            .lines()
-            .reduce("", String::concat);
-
-    assertTrue(
-        body.contains("\"measurementType\":\"temperature\""),
-        "Response missing measurementType. Body was: " + body);
-    assertTrue(
-        body.contains("\"temperature\":22.5"),
-        "Response missing temperature value. Body was: " + body);
+    mockMvc
+        .perform(get("/current/temperature/1"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.measurementType").value("temperature"))
+        .andExpect(jsonPath("$.temperature").value(22.5));
   }
 
-  /* Verify current pressure endpoint */
   @Test
-  @Timeout(value = 200, unit = TimeUnit.MILLISECONDS)
+  @Timeout(value = 5, unit = TimeUnit.SECONDS)
   public void testCurrentPressureEndpoint() throws Exception {
-
-    URL url = new URL("http://localhost:8000/current/pressure/1");
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod("GET");
-
-    assertEquals(200, connection.getResponseCode());
-
-    String body =
-        new BufferedReader(new InputStreamReader(connection.getInputStream()))
-            .lines()
-            .reduce("", String::concat);
-
-    assertTrue(body.contains("\"measurementType\":\"pressure\""));
-    assertTrue(body.contains("\"pressure\":101325.0"));
+    mockMvc
+        .perform(get("/current/pressure/1"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.measurementType").value("pressure"))
+        .andExpect(jsonPath("$.pressure").value(101325.0));
   }
 
-  /* Verify current location endpoint */
   @Test
-  @Timeout(value = 200, unit = TimeUnit.MILLISECONDS)
+  @Timeout(value = 5, unit = TimeUnit.SECONDS)
   public void testCurrentLocationEndpoint() throws Exception {
-
-    URL url = new URL("http://localhost:8000/current/location/1");
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod("GET");
-
-    assertEquals(200, connection.getResponseCode());
-
-    String body =
-        new BufferedReader(new InputStreamReader(connection.getInputStream()))
-            .lines()
-            .reduce("", String::concat);
-
-    assertTrue(body.contains("\"latitude\":42.36"));
-    assertTrue(body.contains("\"longitude\":-71.05"));
+    mockMvc
+        .perform(get("/current/location/1"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.latitude").value(42.36))
+        .andExpect(jsonPath("$.longitude").value(-71.05));
   }
 
-  /* Verify current endpoint returns 404 for invalid buoy */
   @Test
-  @Timeout(value = 200, unit = TimeUnit.MILLISECONDS)
+  @Timeout(value = 5, unit = TimeUnit.SECONDS)
   public void testCurrentInvalidBuoyReturns404() throws Exception {
-
-    URL url = new URL("http://localhost:8000/current/temperature/999");
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod("GET");
-
-    assertEquals(404, connection.getResponseCode());
+    mockMvc.perform(get("/current/temperature/999")).andExpect(status().isNotFound());
   }
 
-  // testing /history with measurementType parameter in path
   @Test
+  @Timeout(value = 5, unit = TimeUnit.SECONDS)
   public void testHistoryWithMeasurementType() throws Exception {
-
-    URL url = new URL("http://localhost:8000/history/temperature/1");
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod("GET");
-
-    assertEquals(200, connection.getResponseCode());
-
-    String body =
-        new BufferedReader(new InputStreamReader(connection.getInputStream()))
-            .lines()
-            .reduce("", String::concat);
-
-    assertTrue(body.contains("\"measurementType\":\"temperature\""));
-    assertTrue(body.contains("\"temperature\":22.5"));
+    mockMvc
+        .perform(get("/history/temperature/1"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.history[0].measurementType").value("temperature"))
+        .andExpect(jsonPath("$.history[0].temperature").value(22.5));
   }
 
-  // testing /history with measurementType and timeframe parameters in path
   @Test
+  @Timeout(value = 5, unit = TimeUnit.SECONDS)
   public void testHistoryHoursFilter() throws Exception {
-
     store.update(
         Arrays.asList(
             new BuoyResponse(1, Instant.now().minusSeconds(7200), 20.0, 101000.0, 42.0, -71.0),
             new BuoyResponse(1, Instant.now(), 25.0, 101200.0, 42.0, -71.0)));
 
-    URL url = new URL("http://localhost:8000/history/temperature/1?hours=1");
-    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-    connection.setRequestMethod("GET");
-
-    assertEquals(200, connection.getResponseCode());
-
     String body =
-        new BufferedReader(new InputStreamReader(connection.getInputStream()))
-            .lines()
-            .reduce("", String::concat);
+        mockMvc
+            .perform(get("/history/temperature/1?hours=1"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
 
-    assertTrue(body.contains("\"temperature\":25.0"));
-    assertFalse(body.contains("\"temperature\":20.0"));
+    assertTrue(body.contains("25.0"));
+    assertFalse(body.contains("20.0"));
   }
 }

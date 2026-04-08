@@ -4,9 +4,14 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
+COPY prisma/ ./prisma/
+COPY prisma.config.ts ./
 
 # Install ALL dependencies (including dev dependencies)
 RUN npm install
+
+# Generate Prisma client into node_modules
+RUN npx prisma generate
 
 # Copy the rest of the application
 COPY . .
@@ -14,5 +19,5 @@ COPY . .
 # Expose port
 EXPOSE 3000
 
-# Run in development mode
-CMD ["npm", "run", "dev"]
+# Apply DB migrations then start dev server
+CMD npx prisma db push && npm run dev

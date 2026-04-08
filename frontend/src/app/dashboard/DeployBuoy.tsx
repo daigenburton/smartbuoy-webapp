@@ -18,7 +18,7 @@ export default function DeployBuoy({ buoyId }: Props) {
     const numericBuoyId = Number(buoyId.split("-")[1])
 
     try {
-      const res = await fetch("http://localhost:8000/deploy", {
+      const res = await fetch("/api/deploy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -8,7 +8,7 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.*;
 
 /** Handler for enqueueing finnhub responses to SQS service. */
-public class SqsResponseHandler implements ResponseHandler {
+public class SqsResponseHandler implements ResponseHandler, AutoCloseable {
   private static final String SQS_QUEUE_NAME = "smartbuoy";
   private static final Region AWS_REGION = Region.US_EAST_1;
 
@@ -66,6 +66,11 @@ public class SqsResponseHandler implements ResponseHandler {
       System.err.println(e.awsErrorDetails().errorMessage());
       throw e;
     }
+  }
+
+  @Override
+  public void close() {
+    sqsClient.close();
   }
 
   private String parseResponseToJson(String message) {

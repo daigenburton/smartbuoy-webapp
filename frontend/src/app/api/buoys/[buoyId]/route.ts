@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { resolveAuth } from "@/lib/resolveAuth"
 
 type CombinedBuoyResponse = {
   temperatureF: number
@@ -16,9 +17,12 @@ const BUOY_NUMERIC_ID: Record<string, number> = {
 
 
 export async function GET(
-  _req: Request,
+  req: Request,
   context: { params: Promise<{ buoyId: string }> },
 ) {
+  const auth = await resolveAuth(req)
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
   const { buoyId } = await context.params
 
   const backendBase = process.env.BACKEND_API_BASE_URL || "http://localhost:8000"
@@ -44,6 +48,14 @@ export async function GET(
     ])
 
     if (!tempRes.ok || !pressureRes.ok || !locationRes.ok) {
+      const allNotFound =
+        tempRes.status === 404 && pressureRes.status === 404 && locationRes.status === 404
+      if (allNotFound) {
+        return NextResponse.json(
+          { error: "No data available for this buoy" },
+          { status: 404 },
+        )
+      }
       return NextResponse.json(
         {
           error: "Backend returned non-OK",

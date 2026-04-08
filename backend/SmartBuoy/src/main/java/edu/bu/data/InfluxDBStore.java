@@ -8,6 +8,7 @@ import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.query.FluxRecord;
 import com.influxdb.query.FluxTable;
 import edu.bu.analytics.UnknownBuoyException;
+import jakarta.annotation.PreDestroy;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -15,34 +16,39 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Service;
 
-/** Persistent data store used to hold buoy readings with InfluxDB */
+/** Persistent data store backed by InfluxDB for time-series buoy readings. */
+@Service
+@ConditionalOnProperty(name = "influxdb.enabled", havingValue = "true")
 public class InfluxDBStore implements DataStore {
 
   private final InfluxDBClient client;
   private final String bucket;
   private final String org;
+  private final QueryApi queryApi;
+  private final WriteApiBlocking writeApi;
   private final Map<Integer, Deployment> deployments = new ConcurrentHashMap<>();
 
-  /** Constructor with connection parameters */
-  public InfluxDBStore(String url, String token, String org, String bucket) {
-    this.client = InfluxDBClientFactory.create(url, token.toCharArray(), org, bucket);
-    this.bucket = bucket;
-    this.org = org;
-  }
-
-  /** Default constructor using values from docker-compose */
-  public InfluxDBStore() {
-    this("http://influxdb:8086", "api-key-ask-daigen", "smart-buoy", "device-data");
+  /** Creates an InfluxDBStore with connection parameters from application properties. */
+  public InfluxDBStore(
+      @Value("${influxdb.url}") String url,
+      @Value("${influxdb.token}") String token,
+      @Value("${influxdb.org}") String influxOrg,
+      @Value("${influxdb.bucket}") String influxBucket) {
+    this.client = InfluxDBClientFactory.create(url, token.toCharArray(), influxOrg, influxBucket);
+    this.bucket = influxBucket;
+    this.org = influxOrg;
+    this.queryApi = client.getQueryApi();
+    this.writeApi = client.getWriteApiBlocking();
   }
 
   @Override
   public void update(List<BuoyResponse> responses) {
-    WriteApiBlocking writeApi = client.getWriteApiBlocking();
-
     for (BuoyResponse response : responses) {
-      String lineProtocol = createLineProtocol(response);
-      writeApi.writeRecord(bucket, org, WritePrecision.NS, lineProtocol);
+      writeApi.writeRecord(bucket, org, WritePrecision.NS, createLineProtocol(response));
     }
   }
 
@@ -50,17 +56,13 @@ public class InfluxDBStore implements DataStore {
   public List<BuoyResponse> getHistory(int buoyId) throws UnknownBuoyException {
     String flux = buildHistoryQuery(buoyId);
     List<FluxTable> tables = executeQuery(flux);
-
     if (tables.isEmpty()) {
       throw new UnknownBuoyException(buoyId);
     }
-
     Map<Instant, Map<String, Double>> groupedData = groupRecordsByTimestamp(tables);
-
     if (groupedData.isEmpty()) {
       throw new UnknownBuoyException(buoyId);
     }
-
     return convertToSortedBuoyResponses(groupedData, buoyId);
   }
 
@@ -68,18 +70,14 @@ public class InfluxDBStore implements DataStore {
   public Optional<BuoyResponse> getLatest(int buoyId) throws UnknownBuoyException {
     String flux = buildLatestQuery(buoyId);
     List<FluxTable> tables = executeQuery(flux);
-
     if (tables.isEmpty()) {
       return Optional.empty();
     }
-
     Map<String, Double> values = new HashMap<>();
     Instant timestamp = extractFieldValues(tables, values);
-
     if (values.size() != 4 || timestamp == null) {
       return Optional.empty();
     }
-
     return Optional.of(createBuoyResponse(buoyId, timestamp, values));
   }
 
@@ -93,7 +91,14 @@ public class InfluxDBStore implements DataStore {
     return Optional.ofNullable(deployments.get(buoyId));
   }
 
-  /** Create InfluxDB line protocol string from BuoyResponse */
+  /** Closes the InfluxDB client on shutdown. */
+  @PreDestroy
+  public void close() {
+    if (client != null) {
+      client.close();
+    }
+  }
+
   private String createLineProtocol(BuoyResponse response) {
     return String.format(
         "buoy_data,buoy_id=%d temperature=%f,pressure=%f,latitude=%f,longitude=%f %d",
@@ -105,7 +110,6 @@ public class InfluxDBStore implements DataStore {
         response.getTimestamp().toEpochMilli() * 1_000_000);
   }
 
-  /** Build Flux query for historical data */
   private String buildHistoryQuery(int buoyId) {
     return String.format(
         "from(bucket: \"%s\") "
@@ -115,7 +119,6 @@ public class InfluxDBStore implements DataStore {
         bucket, buoyId);
   }
 
-  /** Build Flux query for latest data */
   private String buildLatestQuery(int buoyId) {
     return String.format(
         "from(bucket: \"%s\") "
@@ -127,33 +130,25 @@ public class InfluxDBStore implements DataStore {
         bucket, buoyId);
   }
 
-  /** Execute a Flux query and return results */
   private List<FluxTable> executeQuery(String flux) {
-    QueryApi queryApi = client.getQueryApi();
     return queryApi.query(flux, org);
   }
 
-  /** Group flux records by timestamp */
   private Map<Instant, Map<String, Double>> groupRecordsByTimestamp(List<FluxTable> tables) {
     Map<Instant, Map<String, Double>> groupedData = new HashMap<>();
-
     for (FluxTable table : tables) {
       for (FluxRecord record : table.getRecords()) {
         Instant timestamp = record.getTime();
         String field = (String) record.getField();
         Double value = ((Number) record.getValue()).doubleValue();
-
-        groupedData.computeIfAbsent(timestamp, k -> new HashMap<>()).put(field, value);
+        groupedData.computeIfAbsent(timestamp, ignored -> new HashMap<>()).put(field, value);
       }
     }
-
     return groupedData;
   }
 
-  /** Extract field values from flux tables and return timestamp */
   private Instant extractFieldValues(List<FluxTable> tables, Map<String, Double> values) {
     Instant timestamp = null;
-
     for (FluxTable table : tables) {
       for (FluxRecord record : table.getRecords()) {
         if (timestamp == null) {
@@ -164,21 +159,18 @@ public class InfluxDBStore implements DataStore {
         values.put(field, value);
       }
     }
-
     return timestamp;
   }
 
-  /** Convert grouped data to sorted list of BuoyResponse objects */
   private List<BuoyResponse> convertToSortedBuoyResponses(
       Map<Instant, Map<String, Double>> groupedData, int buoyId) {
     return groupedData.entrySet().stream()
         .filter(entry -> entry.getValue().size() == 4)
         .map(entry -> createBuoyResponse(buoyId, entry.getKey(), entry.getValue()))
-        .sorted((a, b) -> a.getTimestamp().compareTo(b.getTimestamp()))
+        .sorted((alpha, beta) -> alpha.getTimestamp().compareTo(beta.getTimestamp()))
         .collect(Collectors.toList());
   }
 
-  /** Create a BuoyResponse from field values */
   private BuoyResponse createBuoyResponse(
       int buoyId, Instant timestamp, Map<String, Double> values) {
     return new BuoyResponse(
@@ -188,12 +180,5 @@ public class InfluxDBStore implements DataStore {
         values.get("pressure"),
         values.get("latitude"),
         values.get("longitude"));
-  }
-
-  /** Clean up connection when done */
-  public void close() {
-    if (client != null) {
-      client.close();
-    }
   }
 }

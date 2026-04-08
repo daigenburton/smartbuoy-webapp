@@ -32,21 +32,62 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* System dark mode */
+/* Explicit light override */
+html.light {
+  --background: #ffffff;
+  --foreground: #171717;
+  --brand-50:  #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-600: #2563eb;
+  --brand-700: #1d4ed8;
+  --card-bg: #ffffff;
+  --card-border: #dbeafe;
+  --card-shadow: 0 10px 20px 0 rgb(0 0 0 / 0.06);
+}
+
+/* Explicit dark override */
+html.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --brand-50:  #0b1220;
+  --brand-100: #0f1b33;
+  --brand-600: #60a5fa;
+  --brand-700: #93c5fd;
+  --card-bg: #0f1115;
+  --card-border: #1f2a44;
+  --card-shadow: 0 10px 20px 0 rgb(0 0 0 / 0.25);
+}
+
+/* System preference (only when no explicit class) */
 @media (prefers-color-scheme: dark) {
-  :root {
+  html:not(.light):not(.dark) {
     --background: #0a0a0a;
     --foreground: #ededed;
-
     --brand-50:  #0b1220;
     --brand-100: #0f1b33;
     --brand-600: #60a5fa;
     --brand-700: #93c5fd;
-
     --card-bg: #0f1115;
     --card-border: #1f2a44;
     --card-shadow: 0 10px 20px 0 rgb(0 0 0 / 0.25);
   }
+}
+
+/* Font scale */
+:root { --font-scale: 1; }
+html.font-small { --font-scale: 0.875; }
+html.font-large { --font-scale: 1.125; }
+html.font-xl    { --font-scale: 1.25; }
+body { font-size: calc(1rem * var(--font-scale)); }
+
+/* Colorblind-safe palette */
+:root {
+  --color-temp: #10b981;
+  --color-pressure: #0ea5e9;
+}
+html.colorblind {
+  --color-temp: #E69F00;
+  --color-pressure: #56B4E9;
 }
 
 /* ---------- Global base ---------- */
@@ -63,8 +104,14 @@ body {
 }
 
 /* darker gradient in dark mode */
+html.dark body,
+html:not(.light):not(.dark) body {
+  background-image: linear-gradient(to bottom, #111827, #111827, #1f2937);
+}
 @media (prefers-color-scheme: dark) {
-  body { @apply bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800; }
+  html:not(.light):not(.dark) body {
+    background-image: linear-gradient(to bottom, #111827, #111827, #1f2937);
+  }
 }
 
 /* Text selection */

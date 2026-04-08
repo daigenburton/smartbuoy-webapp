@@ -4,221 +4,187 @@ import edu.bu.analytics.geofence.GeofenceService;
 import edu.bu.data.BuoyResponse;
 import edu.bu.data.DataStore;
 import edu.bu.data.Deployment;
-import java.net.http.HttpClient;
-import java.time.Duration;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
-import software.amazon.awssdk.services.sqs.model.*;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
+import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
+import software.amazon.awssdk.services.sqs.model.Message;
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
+import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
+import software.amazon.awssdk.services.sqs.model.SqsException;
 
 /**
- * QueueReader continuously polls SQS for new messages and processes them. Implements exponential
- * back-off strategy to avoid overwhelming the queue when empty.
+ * Continuously polls AWS SQS for new buoy messages and updates the DataStore. Uses exponential
+ * back-off when the queue is empty.
  */
+@Component
 public class SQSQueueReader {
-  private static final String SQS_QUEUE_NAME = "smartbuoy";
-  private static final Region AWS_REGION = Region.US_EAST_1;
-  SqsClient sqsClient = SqsClient.builder().region(AWS_REGION).build();
 
-  // Sleep durations
-  private static final long BASE_SLEEP_MS = 100; // Sleep when messages available
-  private static final long INITIAL_BACKOFF_MS = 500; // First empty queue backoff
-  private static final long MAX_BACKOFF_MS = 60000; // Max backoff (1 minute)
-  private static final int BACKOFF_MULTIPLIER = 2; // Exponential multiplier
-  private static final int SQS_WAIT_TIME_SECONDS = 10; // Long polling wait time
+  private static final Logger log = LoggerFactory.getLogger(SQSQueueReader.class);
+  private static final long BASE_SLEEP_MS = 100;
+  private static final long INITIAL_BACKOFF_MS = 500;
+  private static final long MAX_BACKOFF_MS = 60000;
+  private static final int BACKOFF_MULTIPLIER = 2;
+  private static final int SQS_WAIT_TIME_SECONDS = 10;
 
-  final HttpClient httpClient;
-  final DataStore dataStore;
+  private final DataStore dataStore;
+  private final SqsClient sqsClient;
+  private final String sqsQueueName;
+  private String queueUrl;
   private long currentBackoffMs;
+  private volatile boolean running = true;
+  private Thread pollingThread;
 
-  /**
-   * Creates a new QueueReader that will update the provided DataStore
-   *
-   * @param dataStore The DataStore to update with queue messages
-   */
-  public SQSQueueReader(DataStore dataStore) {
+  /** Constructs a SQSQueueReader with the provided DataStore and configuration. */
+  public SQSQueueReader(
+      DataStore dataStore,
+      @Value("${sqs.queue-name:smartbuoy}") String sqsQueueName,
+      @Value("${AWS_REGION:us-east-1}") String awsRegion) {
     this.dataStore = dataStore;
-    this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+    this.sqsQueueName = sqsQueueName;
+    this.sqsClient = SqsClient.builder().region(Region.of(awsRegion)).build();
     this.currentBackoffMs = INITIAL_BACKOFF_MS;
   }
 
-  /**
-   * Starts the queue reader in a new background thread. This runs continuously and does not stop.
-   */
+  /** Starts the SQS polling thread after the Spring context is fully initialized. */
+  @PostConstruct
   public void start() {
-    new Thread(
-            () -> {
-              System.out.println("QueueReader started, polling SQS queue: " + SQS_QUEUE_NAME);
-
-              while (true) {
-                try {
-                  pollQueue();
-                } catch (InterruptedException e) {
-                  System.out.println("QueueReader interrupted");
-                  Thread.currentThread().interrupt();
-                  break;
-                } catch (Exception e) {
-                  System.err.println("Error in QueueReader: " + e.getMessage());
-                  e.printStackTrace();
-                  // Sleep before retry on error
-                  try {
-                    Thread.sleep(1000);
-                  } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    break;
-                  }
-                }
-              }
-            })
-        .start();
+    this.queueUrl = getQueueUrl(sqsClient, sqsQueueName);
+    pollingThread = new Thread(this::runPollingLoop, "sqs-reader");
+    pollingThread.setDaemon(true);
+    pollingThread.start();
+    log.info("SQSQueueReader started, polling queue: {}", sqsQueueName);
   }
 
-  /** Polls the SQS queue once and handles the response with exponential back-off */
-  private void pollQueue() throws Exception {
-    String queueUrl = getQueueUrl(sqsClient, SQS_QUEUE_NAME);
+  /** Shuts down the SQS client when the Spring context closes. */
+  @PreDestroy
+  public void shutdown() {
+    running = false;
+    if (pollingThread != null) {
+      pollingThread.interrupt();
+    }
+    if (sqsClient != null) {
+      sqsClient.close();
+      log.info("SQSQueueReader shutdown complete");
+    }
+  }
 
-    ReceiveMessageRequest receiveMessageRequest =
+  private void runPollingLoop() {
+    while (running) {
+      try {
+        pollQueue();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        break;
+      } catch (Exception e) {
+        log.error("Error in SQSQueueReader: {}", e.getMessage(), e);
+        try {
+          Thread.sleep(1000);
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          break;
+        }
+      }
+    }
+  }
+
+  private void pollQueue() throws Exception {
+    ReceiveMessageRequest receiveRequest =
         ReceiveMessageRequest.builder()
             .queueUrl(queueUrl)
-            .maxNumberOfMessages(10) // Process up to 10 messages at once
-            .waitTimeSeconds(SQS_WAIT_TIME_SECONDS) // Long polling
+            .maxNumberOfMessages(10)
+            .waitTimeSeconds(SQS_WAIT_TIME_SECONDS)
             .build();
 
-    ReceiveMessageResponse response = sqsClient.receiveMessage(receiveMessageRequest);
+    ReceiveMessageResponse response = sqsClient.receiveMessage(receiveRequest);
     List<Message> messages = response.messages();
 
     if (!messages.isEmpty()) {
-      // Successfully received messages
-      System.out.println("Received " + messages.size() + " message(s) from SQS");
-
+      log.info("Received {} message(s) from SQS", messages.size());
       for (Message message : messages) {
         try {
           processMessage(message.body());
-
-          // Delete the message after successful processing
           deleteMessage(message.receiptHandle());
-
         } catch (Exception e) {
-          System.err.println(
-              "Error processing message " + message.messageId() + ": " + e.getMessage());
-          // Message remains in queue and will be retried later
+          log.error("Error processing message {}: {}", message.messageId(), e.getMessage());
         }
       }
-
-      // Reset backoff - more messages likely available
       currentBackoffMs = INITIAL_BACKOFF_MS;
-
-      // Short sleep since more messages probably waiting
       Thread.sleep(BASE_SLEEP_MS);
-
     } else {
-      // Queue is empty
-      System.out.println("Queue empty, backing off for " + currentBackoffMs + "ms");
-
-      // Sleep with current backoff duration
+      log.debug("Queue empty, backing off for {}ms", currentBackoffMs);
       Thread.sleep(currentBackoffMs);
-
-      // Exponentially increase backoff for next empty response, up to max
       currentBackoffMs = Math.min(currentBackoffMs * BACKOFF_MULTIPLIER, MAX_BACKOFF_MS);
     }
   }
 
-  /** Deletes a message from the queue after successful processing */
   private void deleteMessage(String receiptHandle) {
-    String queueUrl = getQueueUrl(sqsClient, SQS_QUEUE_NAME);
     try {
-      DeleteMessageRequest deleteMessageRequest =
-          DeleteMessageRequest.builder().queueUrl(queueUrl).receiptHandle(receiptHandle).build();
-
-      sqsClient.deleteMessage(deleteMessageRequest);
-
+      sqsClient.deleteMessage(
+          DeleteMessageRequest.builder().queueUrl(queueUrl).receiptHandle(receiptHandle).build());
     } catch (SqsException e) {
-      System.err.println("Failed to delete message: " + e.awsErrorDetails().errorMessage());
+      log.error("Failed to delete message: {}", e.awsErrorDetails().errorMessage());
     }
   }
 
-  private static String getQueueUrl(SqsClient sqsClient, String queueName) throws SqsException {
-    GetQueueUrlResponse getQueueUrlResponse =
-        sqsClient.getQueueUrl(GetQueueUrlRequest.builder().queueName(queueName).build());
-    return getQueueUrlResponse.queueUrl();
+  private static String getQueueUrl(SqsClient client, String queueName) {
+    GetQueueUrlResponse urlResponse =
+        client.getQueueUrl(GetQueueUrlRequest.builder().queueName(queueName).build());
+    return urlResponse.queueUrl();
   }
 
-  /**
-   * Processes a message from the queue and updates the DataStore.
-   *
-   * @param messageBody The message body from the queue
-   */
   private void processMessage(String messageBody) {
     try {
       JSONParser jsonParser = new JSONParser();
       JSONObject json = (JSONObject) jsonParser.parse(messageBody);
-
-      BuoyResponse response = parseBuoyResponse(json);
-      dataStore.update(List.of(response));
-
+      BuoyResponse buoyResponse = parseBuoyResponse(json);
+      dataStore.update(List.of(buoyResponse));
       int buoyId = ((Long) json.get("buoyId")).intValue();
       checkGeofence(buoyId);
-
-      System.out.println(
-          "Data for buoy "
-              + response.getBuoyId()
-              + ": "
-              + dataStore.getHistory(response.getBuoyId()));
-
     } catch (Exception e) {
-      System.err.println("Error processing message: " + e.getMessage());
+      log.error("Error processing message: {}", e.getMessage());
       throw new RuntimeException(e);
     }
   }
 
-  /** Checks if buoy is out of user-defined bounds */
   private void checkGeofence(int buoyId) {
-
     try {
       Optional<BuoyResponse> latestOpt = dataStore.getLatest(buoyId);
-
       if (!latestOpt.isPresent()) {
         return;
       }
-
       Optional<Deployment> deploymentOpt = dataStore.getDeployment(buoyId);
       if (!deploymentOpt.isPresent()) {
         return;
       }
-
       BuoyResponse latest = latestOpt.get();
-      double lat = latest.getLatitude();
-      double lon = latest.getLongitude();
-
-      Deployment deployment = deploymentOpt.get();
-
-      boolean outside = GeofenceService.isOutsideFence(deployment, lat, lon);
-
+      boolean outside =
+          GeofenceService.isOutsideFence(
+              deploymentOpt.get(), latest.getLatitude(), latest.getLongitude());
       if (outside) {
-        System.out.println("ALERT: Buoy " + buoyId + " left geofence!");
+        log.warn("ALERT: Buoy {} left geofence!", buoyId);
       }
-
     } catch (Exception e) {
-      System.err.println("Error in geofence check (non-fatal): " + e.getMessage());
+      log.error("Error in geofence check (non-fatal): {}", e.getMessage());
     }
   }
 
-  /**
-   * Parses a JSON object into a BuoyResponse.
-   *
-   * @param json The JSON object containing buoy data
-   * @return BuoyResponse object with parsed sensor data
-   */
   private BuoyResponse parseBuoyResponse(JSONObject json) {
     int buoyId = ((Long) json.get("buoyId")).intValue();
-
-    // Parse timestamp
-    Instant timestamp;
     Object timeObj = json.get("timestamp");
+    Instant timestamp;
     if (timeObj instanceof String) {
       timestamp = Instant.parse((String) timeObj);
     } else if (timeObj instanceof Long) {
@@ -226,21 +192,10 @@ public class SQSQueueReader {
     } else {
       timestamp = Instant.now();
     }
-
-    // Extract all sensor readings
     double temperature = ((Number) json.get("temperature")).doubleValue();
     double pressure = ((Number) json.get("pressure")).doubleValue();
     double latitude = ((Number) json.get("latitude")).doubleValue();
     double longitude = ((Number) json.get("longitude")).doubleValue();
-
     return new BuoyResponse(buoyId, timestamp, temperature, pressure, latitude, longitude);
-  }
-
-  /** Closes the SQS client when shutting down */
-  public void shutdown() {
-    if (sqsClient != null) {
-      sqsClient.close();
-      System.out.println("QueueReader shutdown complete");
-    }
   }
 }

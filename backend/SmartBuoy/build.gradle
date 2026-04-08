@@ -1,9 +1,10 @@
 plugins {
     id 'java'
-    id 'org.jetbrains.kotlin.jvm' version '2.2.0'
+    id 'org.springframework.boot' version '3.3.5'
+    id 'io.spring.dependency-management' version '1.1.6'
     id 'com.adarshr.test-logger' version '4.0.0'
     id 'pmd'
-    id "com.diffplug.spotless" version "7.0.0.BETA1"
+    id 'com.diffplug.spotless' version '7.0.0.BETA1'
 }
 
 pmd {
@@ -12,13 +13,13 @@ pmd {
 
     pmdMain {
         rulesMinimumPriority = 4
-        ruleSets = []  // Empty - we'll use ruleSetFiles instead
+        ruleSets = []
         ruleSetFiles(files("pmdruleset.xml"))
     }
 
     pmdTest {
         rulesMinimumPriority = 1
-        ruleSets = []  // Empty
+        ruleSets = []
         ruleSetFiles(files("pmdruleset.xml"))
     }
 }
@@ -39,26 +40,33 @@ spotless {
 group = 'edu.bu'
 version = '1.0-SNAPSHOT'
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+}
+
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    testImplementation platform('org.junit:junit-bom:5.11.3')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testImplementation 'org.mockito:mockito-core:5.12.0'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-    implementation 'com.google.guava:guava:33.2.1-jre'
-    pmd 'net.sourceforge.pmd:pmd-ant:7.0.0'
-    pmd 'net.sourceforge.pmd:pmd-java:7.0.0'
-    implementation 'org.java-websocket:Java-WebSocket:1.5.6'
-    implementation 'com.googlecode.json-simple:json-simple:1.1.1'
-    implementation 'org.tinylog:tinylog-api:2.7.0'
-    implementation 'org.tinylog:tinylog-impl:2.7.0'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
     implementation platform('software.amazon.awssdk:bom:2.20.0')
     implementation 'software.amazon.awssdk:sqs'
+
     implementation 'com.influxdb:influxdb-client-java:6.10.0'
+    implementation 'com.google.guava:guava:33.2.1-jre'
+    implementation 'com.googlecode.json-simple:json-simple:1.1.1'
+
+    implementation 'org.springframework.integration:spring-integration-mqtt'
+    implementation 'org.springframework.integration:spring-integration-core'
+    implementation 'org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5'
+
+    pmd 'net.sourceforge.pmd:pmd-ant:7.0.0'
+    pmd 'net.sourceforge.pmd:pmd-java:7.0.0'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 test {
@@ -67,9 +75,7 @@ test {
         excludeTags "DBTest"
         excludeTags "Probe"
     }
-
     dependsOn 'cleanTest'
-
     testLogging {
         events "passed", "skipped", "failed"
     }
@@ -81,18 +87,7 @@ task integrationTest(type: Test) {
     }
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
-
     testLogging {
         events "passed", "skipped", "failed"
     }
-}
-
-tasks.register('runServer', JavaExec) {
-    mainClass = 'edu.bu.SmartBuoyServer'
-    classpath = sourceSets.main.runtimeClasspath
-}
-
-tasks.register('mockData', JavaExec) {
-    classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'edu.bu.mock.MockDataGenerator'
 }

@@ -58,7 +58,7 @@ export default function NavAccount() {
       </div>
 
       <button
-        onClick={() => signOut({ callbackUrl: "/home" })}
+        onClick={() => signOut({ callbackUrl: "/login" })}
         className="btn btn-primary px-5 py-2 text-sm"
       >
         Log out
