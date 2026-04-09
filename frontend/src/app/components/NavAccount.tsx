@@ -4,6 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { signOut, useSession } from "next-auth/react"
 import { usePathname } from "next/navigation"
+import NotificationBell from "./NotificationBell"
 
 export default function NavAccount() {
   const { data: session, status } = useSession()
@@ -37,6 +38,7 @@ export default function NavAccount() {
   // DASHBOARD NAVBAR
   return (
     <div className="flex items-center gap-3">
+      <NotificationBell /> 
       <div className="flex items-center gap-2 rounded-full border border-blue-100 bg-white/70 px-3 py-1.5 backdrop-blur">
         {image ? (
           <Image

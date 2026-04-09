@@ -14,6 +14,7 @@ import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 /** Maintains in-memory device shadow state and handles MQTT shadow messages. */
 @Service
@@ -33,7 +34,7 @@ public class ShadowService {
 
   @Autowired
   public ShadowService(
-      @Autowired(required = false) MessageChannel mqttOutboundChannel,
+      @Autowired(required = false) @Qualifier("nullChannel") MessageChannel mqttOutboundChannel,
       ObjectMapper objectMapper) {
     this.mqttOutboundChannel = mqttOutboundChannel;
     this.objectMapper = objectMapper;

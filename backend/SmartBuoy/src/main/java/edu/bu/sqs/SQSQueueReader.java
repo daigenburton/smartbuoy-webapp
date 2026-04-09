@@ -24,6 +24,10 @@ import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
 import software.amazon.awssdk.services.sqs.model.SqsException;
+import java.net.URL;
+import java.net.HttpURLConnection;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Continuously polls AWS SQS for new buoy messages and updates the DataStore. Uses exponential
@@ -146,15 +150,18 @@ public class SQSQueueReader {
   }
 
   private void processMessage(String messageBody) {
+    //log.info("DEBUG processMessage called with: {}", messageBody);
     try {
       JSONParser jsonParser = new JSONParser();
       JSONObject json = (JSONObject) jsonParser.parse(messageBody);
+      //log.info("DEBUG parsed json, buoyId type: {}", json.get("buoyId").getClass().getName());
       BuoyResponse buoyResponse = parseBuoyResponse(json);
       dataStore.update(List.of(buoyResponse));
       int buoyId = ((Long) json.get("buoyId")).intValue();
+      //log.info("DEBUG calling checkGeofence for buoyId: {}", buoyId);
       checkGeofence(buoyId);
     } catch (Exception e) {
-      log.error("Error processing message: {}", e.getMessage());
+      log.error("Error processing message: {}", e.getMessage(), e);
       throw new RuntimeException(e);
     }
   }
@@ -162,10 +169,12 @@ public class SQSQueueReader {
   private void checkGeofence(int buoyId) {
     try {
       Optional<BuoyResponse> latestOpt = dataStore.getLatest(buoyId);
+      //log.info("DEBUG checkGeofence: latestOpt present={}", latestOpt.isPresent());
       if (!latestOpt.isPresent()) {
         return;
       }
       Optional<Deployment> deploymentOpt = dataStore.getDeployment(buoyId);
+      //log.info("DEBUG checkGeofence: deploymentOpt present={}", deploymentOpt.isPresent());
       if (!deploymentOpt.isPresent()) {
         return;
       }
@@ -173,11 +182,53 @@ public class SQSQueueReader {
       boolean outside =
           GeofenceService.isOutsideFence(
               deploymentOpt.get(), latest.getLatitude(), latest.getLongitude());
+      //log.info("DEBUG checkGeofence: outside={}", outside);
+      
       if (outside) {
         log.warn("ALERT: Buoy {} left geofence!", buoyId);
+
+        deploymentOpt.ifPresent(d -> {
+          //log.info("DEBUG: userId={}, sending notification", d.userId);
+          sendNotificationToUser(d.userId, buoyId, "Buoy " + buoyId + " has drifted out of bounds!");
+        });
+
       }
     } catch (Exception e) {
       log.error("Error in geofence check (non-fatal): {}", e.getMessage());
+    }
+  }
+
+  private void sendNotificationToUser(String userId, int buoyId, String message) {
+    try {
+      //URL url = new URL("http://localhost:3000/api/user/notifications");
+      String frontendUrl = System.getenv("FRONTEND_URL") != null
+        ? System.getenv("FRONTEND_URL")
+        : "http://localhost:3000";
+      URL url = new URL(frontendUrl + "/api/user/notifications");
+      HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+      conn.setRequestMethod("POST");
+      conn.setRequestProperty("Content-Type", "application/json");
+      conn.setRequestProperty("x-internal-secret", System.getenv("INTERNAL_API_SECRET"));
+      conn.setDoOutput(true);
+
+      JSONObject body = new JSONObject();
+      body.put("userId", userId);
+      body.put("buoyId", buoyId);
+      body.put("type", "GEOFENCE");
+      body.put("message", message);
+
+      try (OutputStream os = conn.getOutputStream()) {
+        os.write(body.toString().getBytes(StandardCharsets.UTF_8));
+      }
+
+      int status = conn.getResponseCode();
+      //log.info("DEBUG notification POST status: {}", status);
+      if (status != 201) {
+        log.error("Failed to create notification, status: {}", status);
+      }
+      conn.disconnect();
+    } catch (Exception e) {
+      log.error("Error sending notification: {}", e.getMessage());
     }
   }
 
@@ -197,5 +248,9 @@ public class SQSQueueReader {
     double latitude = ((Number) json.get("latitude")).doubleValue();
     double longitude = ((Number) json.get("longitude")).doubleValue();
     return new BuoyResponse(buoyId, timestamp, temperature, pressure, latitude, longitude);
+  }
+
+  public void testProcessMessage(String body) {
+    processMessage(body);
   }
 }

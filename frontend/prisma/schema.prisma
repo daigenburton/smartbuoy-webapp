@@ -44,16 +44,18 @@ model User {
   apiTokens     ApiToken[]
   preference    UserPreference?
   auditLogs     AuditLog[]
+
+  notifications Notification[]
 }
 
 model ApiToken {
-  id          String    @id @default(cuid())
-  userId      String
-  name        String
-  tokenHash   String    @unique
-  createdAt   DateTime  @default(now())
-  lastUsedAt  DateTime?
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UserPreference {
@@ -86,4 +88,15 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  buoyId    Int
+  type      String
+  message   String
+  createdAt DateTime @default(now())
+  read      Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

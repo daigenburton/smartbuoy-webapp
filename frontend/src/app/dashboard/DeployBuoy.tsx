@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 
 type Props = {
   buoyId: string;
 };
 
 export default function DeployBuoy({ buoyId }: Props) {
+  const { data: session } = useSession()
   const [isOpen, setIsOpen] = useState(false)
   const [radius, setRadius] = useState(30);
   const [status, setStatus] = useState<string | null>(null);
@@ -24,6 +26,7 @@ export default function DeployBuoy({ buoyId }: Props) {
         body: JSON.stringify({
           buoyId: numericBuoyId,
           allowedRadiusMeters: radius,
+          userId: session?.user?.id,
         }),
       });
 

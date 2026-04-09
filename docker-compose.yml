@@ -20,6 +20,7 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - DATABASE_URL=file:/app/prisma/data/prod.db
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
     deploy:
       resources:
         limits:
@@ -58,6 +59,8 @@ services:
       - AWS_IOT_KEY_PATH=${AWS_IOT_KEY_PATH}
       - AWS_IOT_ROOT_CA_PATH=${AWS_IOT_ROOT_CA_PATH}
       - JAVA_TOOL_OPTIONS=-Xmx512m -Xms256m
+      - INTERNAL_API_SECRET=${INTERNAL_API_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL}
     deploy:
       resources:
         limits:

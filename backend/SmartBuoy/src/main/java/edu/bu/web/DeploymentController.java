@@ -42,8 +42,9 @@ public class DeploymentController {
     double lat = latest.getLatitude();
     double lon = latest.getLongitude();
     double radius = request.getAllowedRadiusMeters();
+    String userId = request.getUserId();
 
-    Deployment deployment = new Deployment(buoyId, lat, lon, radius, System.currentTimeMillis());
+    Deployment deployment = new Deployment(buoyId, lat, lon, radius, System.currentTimeMillis(), userId);
     dataStore.saveDeployment(deployment);
 
     log.info("Deployment saved for buoy {}", buoyId);
