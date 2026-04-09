@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import dynamic from "next/dynamic"
 import NavAccount from "@/app/components/NavAccount"
+import { PreferencesProvider } from "@/lib/PreferencesContext"
 
 const SettingsPanel = dynamic(() => import("./settings/SettingsPanel"), { ssr: false })
 
@@ -11,7 +12,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   return (
-    <>
+    <PreferencesProvider>
       <header className="sticky top-0 z-50 border-b border-blue-100/60 bg-white/70 backdrop-blur dark:border-slate-700/60 dark:bg-slate-950/60">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <Link href="/home" className="flex items-center gap-2">
@@ -36,6 +37,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </header>
       <main className="mx-auto max-w-5xl px-6 py-8">{children}</main>
       <SettingsPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-    </>
+    </PreferencesProvider>
   )
 }

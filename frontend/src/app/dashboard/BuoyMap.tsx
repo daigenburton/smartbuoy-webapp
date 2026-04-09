@@ -48,7 +48,7 @@ export default function BuoyMap({
   ]
 
   return (
-    <div className="flex-1 rounded-lg overflow-hidden border border-gray-200">
+    <div className="flex-1 rounded-lg overflow-hidden border border-gray-200 isolate">
       <MapContainer
         center={center}
         zoom={14}
