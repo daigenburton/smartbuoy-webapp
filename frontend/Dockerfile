@@ -49,6 +49,7 @@ ENV NODE_ENV=production
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
+RUN mkdir -p /app/prisma/data && chown -R nextjs:nodejs /app/prisma
 
 COPY --from=builder /app/public ./public
 
@@ -56,6 +57,14 @@ COPY --from=builder /app/public ./public
 # https://nextjs.org/docs/advanced-features/output-file-tracing
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Prisma schema + config needed for db push at runtime
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
+# Prisma CLI and client from node_modules
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 
 USER nextjs
 
@@ -66,4 +75,4 @@ ENV PORT=3000
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/config/next-config-js/output
 ENV HOSTNAME="0.0.0.0"
-CMD ["sh", "-c", "npx prisma db push && node server.js"]
+CMD ["sh", "-c", "node_modules/.bin/prisma db push --schema=./prisma/schema.prisma && node server.js"]
