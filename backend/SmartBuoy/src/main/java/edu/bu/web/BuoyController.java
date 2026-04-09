@@ -9,8 +9,6 @@ import edu.bu.web.dto.MeasurementResponse;
 import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -21,8 +19,6 @@ import org.springframework.web.server.ResponseStatusException;
 /** REST controller exposing buoy sensor data endpoints. */
 @RestController
 public class BuoyController {
-
-  private static final Logger log = LoggerFactory.getLogger(BuoyController.class);
 
   private final DataStore dataStore;
 
@@ -49,7 +45,6 @@ public class BuoyController {
     String type = measurementType.toLowerCase();
     List<HistoryEntry> entries = history.stream().map(r -> toHistoryEntry(r, buoyId, type)).collect(Collectors.toList());
 
-    log.info("Handled history request for buoy {}, type {}", buoyId, type);
     return new HistoryResponse(entries);
   }
 
@@ -64,7 +59,6 @@ public class BuoyController {
             .getLatest(buoyId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No data for buoy " + buoyId));
 
-    log.info("Handled current request for buoy {}, type {}", buoyId, measurementType);
     return toMeasurementResponse(latest, measurementType.toLowerCase());
   }
 
@@ -75,7 +69,6 @@ public class BuoyController {
         dataStore
             .getLatest(buoyId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No data for buoy " + buoyId));
-    log.info("Handled temperature request for buoy {}", buoyId);
     return MeasurementResponse.temperature(buoyId, latest.getTimestamp().toEpochMilli(), latest.getTemperature());
   }
 
@@ -86,7 +79,6 @@ public class BuoyController {
         dataStore
             .getLatest(buoyId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No data for buoy " + buoyId));
-    log.info("Handled pressure request for buoy {}", buoyId);
     return MeasurementResponse.pressure(buoyId, latest.getTimestamp().toEpochMilli(), latest.getPressure());
   }
 
@@ -97,7 +89,6 @@ public class BuoyController {
         dataStore
             .getLatest(buoyId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No data for buoy " + buoyId));
-    log.info("Handled location request for buoy {}", buoyId);
     return MeasurementResponse.location(buoyId, latest.getTimestamp().toEpochMilli(), latest.getLatitude(), latest.getLongitude());
   }
 
