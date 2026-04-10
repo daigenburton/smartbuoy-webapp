@@ -148,11 +148,11 @@ public class SQSQueueReader {
   private void processMessage(String messageBody) {
     try {
       JSONParser jsonParser = new JSONParser();
+      log.info("Raw SQS body: {}", messageBody);
       JSONObject json = (JSONObject) jsonParser.parse(messageBody);
       BuoyResponse buoyResponse = parseBuoyResponse(json);
       dataStore.update(List.of(buoyResponse));
-      int buoyId = ((Long) json.get("buoyId")).intValue();
-      checkGeofence(buoyId);
+      checkGeofence(buoyResponse.getBuoyId());
     } catch (Exception e) {
       log.error("Error processing message: {}", e.getMessage());
       throw new RuntimeException(e);
@@ -182,7 +182,9 @@ public class SQSQueueReader {
   }
 
   private BuoyResponse parseBuoyResponse(JSONObject json) {
-    int buoyId = ((Long) json.get("buoyId")).intValue();
+    Object buoyIdRaw = json.get("buoyId") != null ? json.get("buoyId") : json.get("buoy_id");
+    if (buoyIdRaw == null) throw new IllegalArgumentException("Missing buoyId field");
+    int buoyId = ((Long) buoyIdRaw).intValue();
     Object timeObj = json.get("timestamp");
     Instant timestamp;
     if (timeObj instanceof String) {
