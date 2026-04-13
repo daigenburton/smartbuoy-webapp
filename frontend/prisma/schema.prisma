@@ -98,5 +98,6 @@ model Notification {
   message   String
   createdAt DateTime @default(now())
   read      Boolean  @default(false)
+  hidden    Boolean  @default(false)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

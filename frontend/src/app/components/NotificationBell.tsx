@@ -29,7 +29,7 @@ export default function NotificationBell() {
     return () => clearInterval(interval)
   }, [fetchNotifications])
 
-  // Close dropdown when clicking outside
+  // close dropdown menu when clicking outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -42,20 +42,52 @@ export default function NotificationBell() {
 
   const unreadCount = notifications.filter(n => !n.read).length
 
+  // const markAllRead = async () => {
+  //   const unreadIds = notifications.filter(n => !n.read).map(n => n.id)
+  //   if (unreadIds.length === 0) return
+  //   await fetch("/api/user/notifications", {
+  //     method: "PATCH",
+  //     headers: { "Content-Type": "application/json" },
+  //     body: JSON.stringify({ notificationIds: unreadIds }),
+  //   })
+  //   setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+  // }
+
   const markAllRead = async () => {
     const unreadIds = notifications.filter(n => !n.read).map(n => n.id)
     if (unreadIds.length === 0) return
-    await fetch("/api/user/notifications", {
+  
+    const res = await fetch("/api/user/notifications", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ notificationIds: unreadIds }),
     })
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+  
+    if (!res.ok) {
+      console.error("Failed to mark notifications as read")
+      return
+    }
+  
+    const data = await res.json()
+    console.log("PATCH success:", data)
+  
+    setNotifications(prev =>
+      prev.map(n => ({ ...n, read: true }))
+    )
   }
+
+  const dismissNotification = async (id: string) => {
+    await fetch("/api/user/notifications/dismiss", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+  
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
 
   const handleOpen = () => {
     setOpen(prev => !prev)
-    if (!open && unreadCount > 0) void markAllRead()
   }
 
   return (
@@ -86,7 +118,7 @@ export default function NotificationBell() {
           </span>
         )}
       </button>
-
+      
       {/* Dropdown */}
       {open && (
         <div className="absolute right-0 mt-2 w-80 rounded-xl border border-slate-200 bg-white shadow-lg z-50 overflow-hidden">
@@ -113,6 +145,10 @@ export default function NotificationBell() {
                   key={n.id}
                   className={`px-4 py-3 text-sm ${n.read ? "bg-white" : "bg-blue-50"}`}
                 >
+                <div className="flex justify-between items-start">
+                  
+                  {/* left side: message */}
+                <div>
                   <p className={`font-medium ${n.read ? "text-slate-700" : "text-slate-900"}`}>
                     {n.message}
                   </p>
@@ -120,7 +156,17 @@ export default function NotificationBell() {
                     {new Date(n.createdAt).toLocaleString()}
                   </p>
                 </div>
-              ))
+                
+                {/* right side: dismiss button */}
+                <button
+                  onClick={() => dismissNotification(n.id)}
+                  className="text-xs text-gray-400 hover:text-red-500 ml-2"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            ))
             )}
           </div>
         </div>
