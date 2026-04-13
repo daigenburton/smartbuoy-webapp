@@ -34,7 +34,7 @@ public class ShadowService {
 
   @Autowired
   public ShadowService(
-      @Autowired(required = false) @Qualifier("nullChannel") MessageChannel mqttOutboundChannel,
+      @Autowired(required = false) MessageChannel mqttOutboundChannel,
       ObjectMapper objectMapper) {
     this.mqttOutboundChannel = mqttOutboundChannel;
     this.objectMapper = objectMapper;
