@@ -34,7 +34,7 @@ public class ShadowService {
 
   @Autowired
   public ShadowService(
-      @Autowired(required = false) MessageChannel mqttOutboundChannel,
+      @Autowired(required = false) @Qualifier("nullChannel") MessageChannel mqttOutboundChannel,
       ObjectMapper objectMapper) {
     this.mqttOutboundChannel = mqttOutboundChannel;
     this.objectMapper = objectMapper;
@@ -88,6 +88,9 @@ public class ShadowService {
     DeviceShadow existing = shadowState.get(buoyId);
     Integer battery = existing != null ? existing.battery() : null;
     String status = existing != null ? existing.status() : null;
+    Boolean led = existing != null ? existing.led() : null;
+    Boolean buzzer = existing != null ? existing.buzzer() : null;
+    Boolean deployed = existing != null ? existing.deployed() : null;
     Integer desiredSampleInterval = existing != null ? existing.sampleIntervalSec() : null;
     Integer reportedSampleInterval = existing != null ? existing.reportedSampleIntervalSec() : null;
 
@@ -95,6 +98,9 @@ public class ShadowService {
     if (reported != null) {
       if (reported.getBattery() != null) battery = reported.getBattery();
       if (reported.getStatus() != null) status = reported.getStatus();
+      if (reported.getLed() != null) led = reported.getLed();
+      if (reported.getBuzzer() != null) buzzer = reported.getBuzzer();
+      if (reported.getDeployed() != null) deployed = reported.getDeployed();
       if (reported.getSampleIntervalSec() != null)
         reportedSampleInterval = reported.getSampleIntervalSec();
     }
@@ -107,7 +113,16 @@ public class ShadowService {
     shadowState.put(
         buoyId,
         new DeviceShadow(
-            buoyId, battery, status, desiredSampleInterval, reportedSampleInterval, Instant.now()));
+          buoyId,
+          battery,
+          status,
+          led,
+          buzzer,
+          deployed,
+          desiredSampleInterval,
+          reportedSampleInterval,
+          Instant.now()
+      ));
   }
 
   /**
@@ -123,8 +138,27 @@ public class ShadowService {
     }
     String topic = "$aws/things/" + buoyId + "/shadow/update";
     try {
+      // Map<String, Object> payload =
+      //     Map.of("state", Map.of("desired", Map.of("sampleIntervalSec", desired.getSampleIntervalSec())));
+      
+      Map<String, Object> desiredMap = new java.util.HashMap<>();
+
+      if (desired.getSampleIntervalSec() != null) {
+        desiredMap.put("sampleIntervalSec", desired.getSampleIntervalSec());
+      }
+      if (desired.getLed() != null) {
+        desiredMap.put("led", desired.getLed());
+      }
+      if (desired.getBuzzer() != null) {
+        desiredMap.put("buzzer", desired.getBuzzer());
+      }
+      if (desired.getDeployed() != null) {
+        desiredMap.put("deployed", desired.getDeployed());
+      }
+
       Map<String, Object> payload =
-          Map.of("state", Map.of("desired", Map.of("sampleIntervalSec", desired.getSampleIntervalSec())));
+          Map.of("state", Map.of("desired", desiredMap));
+
       String json = objectMapper.writeValueAsString(payload);
       Message<String> msg =
           MessageBuilder.withPayload(json)
