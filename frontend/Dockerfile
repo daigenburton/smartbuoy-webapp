@@ -75,4 +75,4 @@ ENV PORT=3000
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/config/next-config-js/output
 ENV HOSTNAME="0.0.0.0"
-CMD ["sh", "-c", "node_modules/.bin/prisma db push --schema=./prisma/schema.prisma && node server.js"]
+CMD ["sh", "-c", "node_modules/.bin/prisma db push && touch /app/prisma/data/prod.db && chmod 664 /app/prisma/data/prod.db && node server.js"]
