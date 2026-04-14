@@ -52,6 +52,9 @@ public class ShadowUpdateMessage {
 
     private Integer battery;
     private String status;
+    private Boolean led;
+    private Boolean buzzer;
+    private Boolean deployed;
     private Integer sampleIntervalSec;
 
     public Integer getBattery() {
@@ -77,5 +80,30 @@ public class ShadowUpdateMessage {
     public void setSampleIntervalSec(Integer sampleIntervalSec) {
       this.sampleIntervalSec = sampleIntervalSec;
     }
+
+    public Boolean getLed() {
+      return led;
+    }
+
+    public void setLed(Boolean led) {
+      this.led = led;
+    }
+
+    public Boolean getBuzzer() {
+      return buzzer;
+    }
+
+    public void setBuzzer(Boolean buzzer) {
+      this.buzzer = buzzer;
+    }
+
+    public Boolean getDeployed() {
+      return deployed;
+    }
+
+    public void setDeployed(Boolean deployed) {
+      this.deployed = deployed;
+    }
+    
   }
 }
