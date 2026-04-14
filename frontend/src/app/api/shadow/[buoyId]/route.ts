@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND_API_BASE_URL =
-  process.env.BACKEND_API_BASE_URL || "http://localhost:8000";
+  process.env.BACKEND_API_BASE_URL || "http://backend:8000";
 
 type RouteContext = {
   params: Promise<{ buoyId: string }>;
