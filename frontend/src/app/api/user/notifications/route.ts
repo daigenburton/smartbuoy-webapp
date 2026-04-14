@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { resolveAuth } from "@/lib/resolveAuth";
+import { sendNotificationEmail } from "@/lib/email";
 
 // GET — fetch notifications for the logged-in user
 export async function GET(req: Request) {
@@ -9,7 +10,7 @@ export async function GET(req: Request) {
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const notifications = await prisma.notification.findMany({
-    where: { userId: auth.userId },
+    where: { userId: auth.userId, hidden: false, },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
@@ -17,8 +18,8 @@ export async function GET(req: Request) {
   return NextResponse.json(notifications);
 }
 
-// POST — create a notification (called internally by Java backend)
-// Protected by a shared secret header, NOT user session auth
+// POST — create a notification 
+// protected by a shared secret header not user session auth
 export async function POST(req: Request) {
   const secret = req.headers.get("x-internal-secret");
   if (secret !== process.env.INTERNAL_API_SECRET) {
@@ -39,6 +40,17 @@ export async function POST(req: Request) {
       message: body.message,
     },
   });
+
+    // fetch user email
+    const user = await prisma.user.findUnique({
+    where: { id: body.userId },
+    select: { email: true },
+    });
+
+    // send email
+    if (user?.email) {
+    await sendNotificationEmail(user.email, body.message);
+    }
 
   return NextResponse.json(notification, { status: 201 });
 }
