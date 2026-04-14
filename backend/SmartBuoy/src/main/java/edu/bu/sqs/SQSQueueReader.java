@@ -61,7 +61,12 @@ public class SQSQueueReader {
   /** Starts the SQS polling thread after the Spring context is fully initialized. */
   @PostConstruct
   public void start() {
-    this.queueUrl = getQueueUrl(sqsClient, sqsQueueName);
+    try {
+      this.queueUrl = getQueueUrl(sqsClient, sqsQueueName);
+    } catch (Exception e) {
+      log.warn("SQS queue '{}' not found — SQS polling disabled: {}", sqsQueueName, e.getMessage());
+      return;
+    }
     pollingThread = new Thread(this::runPollingLoop, "sqs-reader");
     pollingThread.setDaemon(true);
     pollingThread.start();
@@ -194,10 +199,16 @@ public class SQSQueueReader {
     } else {
       timestamp = Instant.now();
     }
-    double temperature = ((Number) json.get("temperature")).doubleValue();
-    double pressure = ((Number) json.get("pressure")).doubleValue();
-    double latitude = ((Number) json.get("latitude")).doubleValue();
-    double longitude = ((Number) json.get("longitude")).doubleValue();
+    double temperature = requireDouble(json, "temperature");
+    double pressure = requireDouble(json, "pressure");
+    double latitude = requireDouble(json, "latitude");
+    double longitude = requireDouble(json, "longitude");
     return new BuoyResponse(buoyId, timestamp, temperature, pressure, latitude, longitude);
+  }
+
+  private static double requireDouble(JSONObject json, String field) {
+    Object value = json.get(field);
+    if (value == null) throw new IllegalArgumentException("Missing required field: " + field);
+    return ((Number) value).doubleValue();
   }
 }

@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.lang.Nullable;
 import org.springframework.messaging.Message;
@@ -33,7 +34,7 @@ public class ShadowService {
 
   @Autowired
   public ShadowService(
-      @Autowired(required = false) @Qualifier("nullChannel") MessageChannel mqttOutboundChannel,
+      @Autowired(required = false) @Qualifier("mqttOutboundChannel") MessageChannel mqttOutboundChannel,
       ObjectMapper objectMapper) {
     this.mqttOutboundChannel = mqttOutboundChannel;
     this.objectMapper = objectMapper;
@@ -42,6 +43,7 @@ public class ShadowService {
   /** Receives inbound shadow messages from AWS IoT Core via Spring Integration. */
   public void handleInbound(Message<String> message) {
     String topic = (String) message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC);
+    log.info("MQTT inbound: topic={}", topic);
     if (topic == null) {
       log.warn("Received MQTT message without topic header");
       return;
@@ -78,56 +80,39 @@ public class ShadowService {
 
     if ("delta".equals(messageType) && state.getDelta() != null) {
       ShadowUpdateMessage.ShadowFields delta = state.getDelta();
-      log.info(
-          "Buoy {} shadow delta: desired sampleIntervalSec={}",
-          buoyId,
-          delta.getSampleIntervalSec());
+      log.info("Buoy {} shadow delta: led={}, buzzer={}, deployed={}", buoyId, delta.getLed(), delta.getBuzzer(), delta.getDeployed());
     }
 
     DeviceShadow existing = shadowState.get(buoyId);
     Integer battery = existing != null ? existing.battery() : null;
-    String status = existing != null ? existing.status() : null;
     Boolean led = existing != null ? existing.led() : null;
     Boolean buzzer = existing != null ? existing.buzzer() : null;
     Boolean deployed = existing != null ? existing.deployed() : null;
-    Integer desiredSampleInterval = existing != null ? existing.sampleIntervalSec() : null;
-    Integer reportedSampleInterval = existing != null ? existing.reportedSampleIntervalSec() : null;
 
     ShadowUpdateMessage.ShadowFields reported = state.getReported();
     if (reported != null) {
       if (reported.getBattery() != null) battery = reported.getBattery();
-      if (reported.getStatus() != null) status = reported.getStatus();
       if (reported.getLed() != null) led = reported.getLed();
       if (reported.getBuzzer() != null) buzzer = reported.getBuzzer();
       if (reported.getDeployed() != null) deployed = reported.getDeployed();
-      if (reported.getSampleIntervalSec() != null)
-        reportedSampleInterval = reported.getSampleIntervalSec();
     }
 
     ShadowUpdateMessage.ShadowFields desired = state.getDesired();
-    if (desired != null && desired.getSampleIntervalSec() != null) {
-      desiredSampleInterval = desired.getSampleIntervalSec();
+    if (desired != null) {
+      if (desired.getLed() != null) led = desired.getLed();
+      if (desired.getBuzzer() != null) buzzer = desired.getBuzzer();
+      if (desired.getDeployed() != null) deployed = desired.getDeployed();
     }
 
     shadowState.put(
         buoyId,
-        new DeviceShadow(
-          buoyId,
-          battery,
-          status,
-          led,
-          buzzer,
-          deployed,
-          desiredSampleInterval,
-          reportedSampleInterval,
-          Instant.now()
-      ));
+        new DeviceShadow(buoyId, battery, led, buzzer, deployed, Instant.now()));
   }
 
   /**
    * Publishes a desired state update to the AWS IoT Core shadow for the given buoy.
    *
-   * @param buoyId the thing name (e.g. "buoy-1")
+   * @param buoyId the thing name (e.g. "esp32")
    * @param desired the desired shadow fields to publish
    */
   public void publishDesiredState(String buoyId, ShadowUpdateMessage.ShadowFields desired) {
@@ -137,14 +122,8 @@ public class ShadowService {
     }
     String topic = "$aws/things/" + buoyId + "/shadow/update";
     try {
-      // Map<String, Object> payload =
-      //     Map.of("state", Map.of("desired", Map.of("sampleIntervalSec", desired.getSampleIntervalSec())));
-      
       Map<String, Object> desiredMap = new java.util.HashMap<>();
 
-      if (desired.getSampleIntervalSec() != null) {
-        desiredMap.put("sampleIntervalSec", desired.getSampleIntervalSec());
-      }
       if (desired.getLed() != null) {
         desiredMap.put("led", desired.getLed());
       }
@@ -155,8 +134,7 @@ public class ShadowService {
         desiredMap.put("deployed", desired.getDeployed());
       }
 
-      Map<String, Object> payload =
-          Map.of("state", Map.of("desired", desiredMap));
+      Map<String, Object> payload = Map.of("state", Map.of("desired", desiredMap));
 
       String json = objectMapper.writeValueAsString(payload);
       Message<String> msg =
@@ -174,7 +152,26 @@ public class ShadowService {
     return Optional.ofNullable(shadowState.get(buoyId));
   }
 
-  /** Extracts thing name (e.g. "buoy-1") from a shadow topic path. */
+  /**
+   * Publishes an empty get request so AWS IoT responds with the current shadow state.
+   *
+   * @return true if published successfully, false if MQTT is unavailable or publish failed
+   */
+  public boolean requestShadow(String buoyId) {
+    if (mqttOutboundChannel == null) return false;
+    String topic = "$aws/things/" + buoyId + "/shadow/get";
+    try {
+      Message<String> msg = MessageBuilder.withPayload("{}").setHeader(MqttHeaders.TOPIC, topic).build();
+      mqttOutboundChannel.send(msg);
+      log.info("Requested shadow state for {}", buoyId);
+      return true;
+    } catch (Exception e) {
+      log.warn("Shadow request failed for {}", buoyId, e);
+      return false;
+    }
+  }
+
+  /** Extracts thing name from a shadow topic path. */
   private static String extractBuoyId(String topic) {
     // Topic format: $aws/things/{thingName}/shadow/update/{type}
     String[] parts = topic.split("/");
@@ -184,7 +181,7 @@ public class ShadowService {
     return null;
   }
 
-  /** Extracts the message type suffix (delta/accepted/rejected) from a shadow topic. */
+  /** Extracts the message type suffix from a shadow topic. */
   private static String extractMessageType(String topic) {
     if (topic.endsWith("/delta")) return "delta";
     if (topic.endsWith("/accepted")) return "accepted";

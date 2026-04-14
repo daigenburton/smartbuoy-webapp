@@ -313,6 +313,8 @@ type Location = {
 type ShadowState = {
   deployed?: boolean | null
   battery?: number | null
+  led?: boolean | null
+  buzzer?: boolean | null
 }
 
 async function fetchBuoyDataFromApi(buoyId: BuoyId): Promise<BuoyData> {
