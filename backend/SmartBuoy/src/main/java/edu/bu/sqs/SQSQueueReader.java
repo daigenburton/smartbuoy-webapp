@@ -116,9 +116,10 @@ public class SQSQueueReader {
       for (Message message : messages) {
         try {
           processMessage(message.body());
-          deleteMessage(message.receiptHandle());
         } catch (Exception e) {
           log.error("Error processing message {}: {}", message.messageId(), e.getMessage());
+        } finally {
+          deleteMessage(message.receiptHandle());
         }
       }
       currentBackoffMs = INITIAL_BACKOFF_MS;
@@ -148,7 +149,6 @@ public class SQSQueueReader {
   private void processMessage(String messageBody) {
     try {
       JSONParser jsonParser = new JSONParser();
-      log.info("Raw SQS body: {}", messageBody);
       JSONObject json = (JSONObject) jsonParser.parse(messageBody);
       BuoyResponse buoyResponse = parseBuoyResponse(json);
       dataStore.update(List.of(buoyResponse));
