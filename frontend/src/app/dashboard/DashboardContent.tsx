@@ -423,58 +423,42 @@ export default function DashboardContent() {
     void loadShadowState(selectedBuoy)
   }
 
-  const handleDeployBuoy = async () => {
-    console.log("[DEBUG] handleDeployBuoy fired, selectedBuoy=", selectedBuoy)
+  const handleDeployToggle = async () => {
     try {
       setIsDeploying(true)
       setError(null)
 
-      console.log("[DEBUG] fetching POST /api/shadow/" + selectedBuoy)
       const res = await fetch(`/api/shadow/${selectedBuoy}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          deployed: true,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deployed: !shadowState?.deployed }),
       })
 
-      if (!res.ok) {
-        throw new Error("Failed to deploy buoy")
-      }
-
+      if (!res.ok) throw new Error("Failed to update deploy state")
       await loadShadowState(selectedBuoy)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to deploy buoy")
+      setError(err instanceof Error ? err.message : "Failed to update deploy state")
     } finally {
       setIsDeploying(false)
     }
   }
 
-  const handleFindMyBuoy = async () => {
+  const handleFindMyBuoyToggle = async () => {
     try {
       setIsFinding(true)
       setError(null)
 
+      const active = shadowState?.led || shadowState?.buzzer
       const res = await fetch(`/api/shadow/${selectedBuoy}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          buzzer: true,
-          led: true,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ led: !active, buzzer: !active }),
       })
 
-      if (!res.ok) {
-        throw new Error("Failed to trigger Find My Buoy")
-      }
-
+      if (!res.ok) throw new Error("Failed to update Find My Buoy state")
       await loadShadowState(selectedBuoy)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to trigger Find My Buoy")
+      setError(err instanceof Error ? err.message : "Failed to update Find My Buoy state")
     } finally {
       setIsFinding(false)
     }
@@ -552,26 +536,6 @@ export default function DashboardContent() {
             disabled={isLoading}
           >
             {isLoading ? "Refreshing..." : "Refresh Data"}
-          </button>
-
-          <DeployBuoy buoyId={selectedBuoy} buttonLabel="Set Drift Range" />
-
-          <button
-            type="button"
-            className="btn btn-primary h-[42px]"
-            onClick={handleDeployBuoy}
-            disabled={isDeploying}
-          >
-            {isDeploying ? "Deploying..." : "Deploy Buoy"}
-          </button>
-
-          <button
-            type="button"
-            className="btn btn-primary h-[42px]"
-            onClick={handleFindMyBuoy}
-            disabled={isFinding}
-          >
-            {isFinding ? "Finding..." : "Find My Buoy"}
           </button>
         </div>
       </header>
@@ -672,6 +636,71 @@ export default function DashboardContent() {
             firstLocation={firstLocation}
             currentLocation={data ? { latitude: data.latitude, longitude: data.longitude } : null}
           />
+        </div>
+      </section>
+
+      {/* Buoy Controls */}
+      <section className="card" style={{ padding: "1.5rem" }}>
+        <h2 className="text-lg font-semibold mb-4">Buoy Controls</h2>
+        <div className="divide-y divide-gray-100 dark:divide-gray-700">
+
+          {/* Deploy */}
+          <div className="flex items-center justify-between py-3">
+            <div>
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Deploy</p>
+              <p className="text-xs text-gray-400">Mark buoy as deployed in the field</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!!shadowState?.deployed}
+              onClick={handleDeployToggle}
+              disabled={isDeploying}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${
+                shadowState?.deployed ? "bg-blue-600" : "bg-gray-300 dark:bg-gray-600"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  shadowState?.deployed ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Find My Buoy */}
+          <div className="flex items-center justify-between py-3">
+            <div>
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Find My Buoy</p>
+              <p className="text-xs text-gray-400">Activate LED and buzzer on the buoy</p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={!!(shadowState?.led || shadowState?.buzzer)}
+              onClick={handleFindMyBuoyToggle}
+              disabled={isFinding}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${
+                shadowState?.led || shadowState?.buzzer ? "bg-blue-600" : "bg-gray-300 dark:bg-gray-600"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  shadowState?.led || shadowState?.buzzer ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Drift Range */}
+          <div className="flex items-center justify-between py-3">
+            <div>
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Drift Range</p>
+              <p className="text-xs text-gray-400">Set the allowed drift radius from deployment point</p>
+            </div>
+            <DeployBuoy buoyId={selectedBuoy} buttonLabel="Configure" />
+          </div>
+
         </div>
       </section>
 

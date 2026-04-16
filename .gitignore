@@ -53,3 +53,6 @@ claude-prime-*.zip
 # ---- Claude Code ----
 .claude/
 CLAUDE.md
+
+# ---- Server config ----
+nginx.conf
