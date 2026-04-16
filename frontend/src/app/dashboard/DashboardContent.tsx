@@ -424,10 +424,12 @@ export default function DashboardContent() {
   }
 
   const handleDeployBuoy = async () => {
+    console.log("[DEBUG] handleDeployBuoy fired, selectedBuoy=", selectedBuoy)
     try {
       setIsDeploying(true)
       setError(null)
 
+      console.log("[DEBUG] fetching POST /api/shadow/" + selectedBuoy)
       const res = await fetch(`/api/shadow/${selectedBuoy}`, {
         method: "POST",
         headers: {
